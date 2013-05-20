@@ -61,5 +61,4 @@ liftO f xs = do { tell $ return $ CheckResult f xs (f xs)
 --     where g [x,y] = f x y 
 
 checkHistory :: (a -> a) -> History (CheckResult a) -> Bool 
-checkHistory u history = 
-    Foldable.all (checkUpd u) history  
+checkHistory u = Foldable.all (checkUpd u) 

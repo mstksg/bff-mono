@@ -8,7 +8,7 @@ ifM m x y = m >>= (\b -> if b then x else y)
 nubByM :: Monad m => (a -> a -> m Bool) -> [a] -> m [a]
 nubByM eq xs = f xs 
     where
-      f []     = return $ []
+      f []     = return []
       f (x:xs) = do { r <- deleteByM eq x xs
                     ; return $ x:r }
 
@@ -17,10 +17,7 @@ deleteByM eq x [] = return []
 deleteByM eq x (y:ys) = 
     do { b <- eq x y 
        ; r <- deleteByM eq x ys 
-       ; if b then 
-             return r 
-         else
-             return $ x:r }
+       ; return (if b then r else x:r) }
 
 deleteFirstByM :: Monad m => (a -> a -> m Bool) -> a -> [a] -> m [a]
 deleteFirstByM eq x [] = return []
@@ -34,12 +31,8 @@ deleteFirstByM eq x (y:ys) =
 
 unionByM :: Monad m => (a -> a -> m Bool) -> [a] -> [a] -> m [a]
 unionByM eq xs ys = 
-    do { ys' <- f xs ys 
+    do { ys' <- foldM (flip (deleteByM eq)) ys xs 
        ; return $ xs ++ ys' }
-    where
-      f [] ys = return ys 
-      f (x:xs) ys = do { ys' <- deleteByM eq x ys 
-                       ; f xs ys' }
 
 intersectByM :: Monad m => (a -> a -> m Bool) -> [a] -> [a] -> m [a]
 intersectByM eq xs ys = f xs
@@ -47,10 +40,7 @@ intersectByM eq xs ys = f xs
       f [] = return []
       f (x:xs) = do { b <- elemByM eq x ys
                     ; r <- f xs 
-                    ; if b then 
-                          return $ x:r
-                      else
-                          return r }
+                    ; return (if b then x:r else r) }
       
     
 elemByM :: Monad m => (a -> a -> m Bool) -> a -> [a] -> m Bool 
@@ -77,7 +67,7 @@ groupByM eq xs = g xs
                       ; return $ reverse (y:ys):r }}
 
 sortByM :: Monad m => (a -> a -> m Ordering) -> [a] -> m [a]
-sortByM ord xs = ms (map (\x -> [x]) xs)
+sortByM ord xs = ms (map (:[]) xs)
     where
       ms []  = return []
       ms [r] = return r
@@ -108,7 +98,7 @@ insertBy ord a xs = f a xs
           do { o <- ord a x  
              ; case o of 
                  GT -> liftM (x:) $ f a xs 
-                 _  -> return $ (a:x:xs)}
+                 _  -> return (a:x:xs)}
 
 maximumByM :: Monad m => (a -> a -> m Ordering) -> [a] -> m a
 maximumByM ord xs = f xs 
