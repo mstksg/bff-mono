@@ -1,4 +1,14 @@
-module Language.CheapB18n.Utility where 
+{-|
+  The module provides counterparts of @..By@ functions in "Data.List"
+  for monadic observations. 
+-}
+module Language.CheapB18n.Utility 
+    ( 
+     ifM, nubByM, deleteByM, deleteFirstByM, unionByM, 
+     intersectByM, elemByM, groupByM, 
+     sortByM, insertByM, maximumByM, minimumByM
+     ) where 
+
 
 import Control.Monad 
     
@@ -90,8 +100,8 @@ sortByM ord xs = ms (map (:[]) xs)
                  LT -> liftM (x:) $ merge xs (y:ys)
                  GT -> liftM (y:) $ merge (x:xs) ys }
 
-insertBy :: Monad m => (a -> a -> m Ordering) -> a -> [a] -> m [a]
-insertBy ord a xs = f a xs 
+insertByM :: Monad m => (a -> a -> m Ordering) -> a -> [a] -> m [a]
+insertByM ord a xs = f a xs 
     where
       f a [] = return [a]
       f a (x:xs) =

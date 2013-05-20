@@ -2,7 +2,7 @@
 
 import Language.CheapB18n 
 
-import Language.CheapB18n.Helper 
+import Language.CheapB18n.Base 
 import Language.CheapB18n.CheckHistory hiding (liftO)
 import Language.CheapB18n.Utility 
 
@@ -23,7 +23,10 @@ import Debug.Trace
 import Text.Printf 
 import qualified Data.IntMap as I 
 
+import System.Exit 
+
 main = mapM_ (\(s,a) -> printf "%-20s: " s >> a) tests
+       >> exitSuccess 
 
 tests = [ ("assignIDs",         quickCheck prop_assignIDs)
         , ("update/empty",      quickCheck prop_updateEmpty )
