@@ -1,0 +1,25 @@
+name:                cheap-b18n
+version:             0.1.0.0
+synopsis:            An EDSL for bidirectional transformation.
+description:         This package provides a class 'PackM c a m' so that
+                     a function defined with the polymorphic type 'forall a m.
+                     PackM c a m => f a -> m (t a)' for 'f' and 't' of
+                     'Traversable' instances can be bidirectionalized by 
+		     'fwd' and 'bwd'. 
+license:             BSD3
+license-file:        LICENSE
+author:              Kazutaka Matsuda
+                     Meng Wang
+maintainer:          kztk@is.s.u-tokyo.ac.jp
+-- copyright:
+category:            Language
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  exposed-modules:     Language.CheapB18n
+                       Language.CheapB18n.Helper
+                       Language.CheapB18n.CheckHistory 
+                       Language.CheapB18n.Utility
+  build-depends:       base >= 4 && < 5, mtl, containers
+
