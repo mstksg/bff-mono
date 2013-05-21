@@ -187,12 +187,10 @@ fwdI pget =
         in (xview, hist)
 
 
-bwdI :: (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
-        MonadError e n, Error e) =>
-       (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
+bwdI :: (Traversable sf, Eq c, MonadError e n, Error e) =>
            History (CheckResult (Loc c)) -> sf (Loc c)
                -> Update c -> n (sf (Loc c))
-bwdI pget hist xsrc upd =
+bwdI hist xsrc upd =
     if checkHistory (update upd) hist then 
         return $ fmap (update upd) xsrc 
     else
