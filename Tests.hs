@@ -3,7 +3,7 @@
 import Language.CheapB18n 
 
 import Language.CheapB18n.Base 
-import Language.CheapB18n.CheckHistory hiding (liftO)
+import Language.CheapB18n.CheckHistory 
 import Language.CheapB18n.Utility 
 
 import Test.QuickCheck 

@@ -357,7 +357,7 @@ Here, the following instance of $\mi{PackM}$ is used.
 \ee 
 \]
 %
-\todo{From here}
+%\todo{From here}
 We used the auxiliary functions 
 $\mi{assignIDs}$, $\mi{matchViews}$, $\mi{checkHistory}$ and $\mi{update}$
 in the definition of $\mi{bwd}$.
@@ -369,25 +369,34 @@ The following are the types and the roles of the functions.
    $\mi{Node}~(\mi{Loc}~\texttt{"a"}\ (\mi{Just}~1))\ \allowbreak[\mi{Node}~(\mi{Loc}~\texttt{"b"}~(\mi{Just}~2))~[], \mi{Node}\ (\mi{Loc}\ \texttt{"c"}\ (\mi{Just}~3))~[]]$.
  \item $\mi{matchViews} :: \mi{Eq}~\beta \Rightarrow \mi{Tree}~\beta \to \mi{Tree}~(\mi{Loc}~\beta) \to \mi{IntMap}~\beta$ compares two views and returns a mapping from the changed positions to the changed values.
    For example, let $v = \mi{Node}~\texttt{"a"}~[\mi{Node}~\texttt{"B"}~[], \mi{Node}~\texttt{"c"}~[]]$ and $\mi{xv} = \mi{Node}~(\mi{Loc}~\texttt{"a"}~(\mi{Just}~1))~[\mi{Node}~(\mi{Loc}~\texttt{"b"}~(\mi{Just}~2))~[], \mi{Node}~(\mi{Loc}~\texttt{"c"}~(\mi{Just}~3))~[]]$, $\mi{matchViews}~v~\mi{xv}$ returns a mapping from $2$ to $\texttt{"B"}$.
- \item $\mi{checkHistory} :: \mi{Eq}~\alpha \Rightarrow \mi{IntMap}~\alpha \to [\mi{ObsEq}~\alpha] \to \mi{Bool}$ checks whether the input updates represented by $\mi{IntMap}$ does not change the comparison history or not. 
+ \item $\mi{checkHistory} :: \mi{Eq}~\alpha \Rightarrow (\alpha \to \alpha) \to [\mi{Result}~\alpha] \to \mi{Bool}$ checks whether the input updates represented by $\alpha \to \alpha$ does not change the observation history or not. 
  \item $\mi{update} :: \mi{IntMap}~\alpha \to (\mi{Loc}~\alpha) \to (\mi{Loc}~\alpha)$ performs the input updates.
 \end{itemize}
+
+To describe the properties of the auxiliary functions, we define a notion of
+\emph{location-consistent}. First, we introduce some notations. We write $\mi{elems}$ for a (non-Haskell) function that returns all the elements in a tree. 
+Then, we define the notion of consistent view. 
+\begin{definition}[Location-Consistency]
+A tree $v :: \mi{Tree}~(\mi{Loc}~\alpha)$ is location-consistent if 
+there are no two elements $(\mi{Loc}~a~(\mi{Just}~i), (\mi{Loc}~b~(\mi{Just}~j)) \in \mi{elems}~v$ such that $i = j$ but $a \not\texteq b$.
+\end{definition}
 
 We are not interested in concrete definitions of the auxiliary functions, while
 we use the following properties to prove the correctness of our 
 bidirectionalization.
 \begin{itemize}
+ \item $\mi{assignIDs}~s$ is location-consistent.
  \item $\mi{fmap}~\mi{body}~(\mi{assignIDs}~\mi{s}) = \mi{s}$.
- \item $\mi{update}~\mi{IntMap.empty}~x = x$. \todo{Can we remove it?}
+ \item $\mi{update}~\mi{IntMap.empty}~x = x$. %\todo{Can we remove it?}
  \item $\mi{fmap}~(\mi{body} \circ \mi{update}~\mi{upd})~\mi{xview} = v$
-    if $\mi{upd} = \mi{matchViews}~\mi{xview}~v$. \todo{Additional condition on $\mi{xview}$ is required}
+    if $\mi{upd} = \mi{matchViews}~\mi{xview}~v$ and $\mi{xview}$ is location consistent.
  \item  
      $\mi{matchViews}~\mi{xview}~v = \mi{IntMap.empty}$
-   if $\mi{fmap}~\mi{body}~\mi{xview} = v$. \todo{Too restrictive in practice}
+   if $\mi{fmap}~\mi{body}~\mi{xview} = v$ and $\mi{xview}$ is location-consistent. 
  \item $\mi{checkHistory}~\mi{upd}~[] = \mi{True}$.
  \item $\mi{checkHistory}~\mi{upd}~(w_1 \APPEND w_2) = \mi{checkHistory}~\mi{upd}~w_1 \mathbin{\texttt{\&\&}} \mi{checkHistory}~\mi{upd}~w_2$.
- \item $(\mi{body}~(\mi{update}~\mi{upd}~x) \texteq \mi{body}~(\mi{update}~\mi{upd}~y)) = (\mi{body}~x \texteq \mi{body}~y)$
-    if $\mi{checkHistory}~\mi{upd}~[\mi{Obs}~x~y~(\mi{body}~x \texteq \mi{body}~y)] = \mi{True}$.
+ \item $p~(\mi{map}~u~x) = p~x$
+    if $\mi{checkHistory}~u~[\mi{Result}~p~x~(p~x)] = \mi{True}$.
  \item $\mi{update}~\mi{upd}~(\mi{new}~x) = \mi{new}~x$
 \end{itemize}
 
@@ -478,19 +487,18 @@ $\mathcal{F}$ can map any relation $\mathcal{R} : \tau_1 \leftrightarrow \tau_2$
 
 Then, let us focus on a function with type 
 \[
-\forall \alpha \mu. (\mi{Pack}~L~\alpha, \mi{EqO}~\alpha~\mu) \Rightarrow 
+\forall \alpha \mu. (\mi{PackM}~L~\alpha~\mu) \Rightarrow 
  \mi{Tree}~\alpha \to \mu~(\mi{Tree}~\alpha)
 \]
 for some label type $L$.
 Following~\cite{Voigtlander09ft}, we have a following free theorem for the datatype.
 \begin{theorem}[Free Theorem for View Function]
 Let $L$ be a type. 
-Let $(\tau_1,\kappa_1)$ and $(\tau_2,\kappa_2)$ are triples of types, types and type constructors satisfying:
+Let $(\tau_1,\kappa_1)$ and $(\tau_2,\kappa_2)$ are pairs of types and type constructors satisfying:
 \begin{itemize}
 % \item $(\eta_1,\kappa_1)$ and $(\eta_2,\kappa_2)$ are instances of $\mi{WeakWriter}$ (and thus, $\kappa_1$ and $\kappa_2$ are instances of $\mi{Monad}$s), 
  \item $\kappa_1$ and $\kappa_2$ are instances of $\mi{Monad}$, 
- \item $(L,\tau_1)$ and $(L,\tau_2)$ are instances of $\mi{Pack}$, and 
- \item $(\tau_1,\kappa_1)$ and $(\tau_2,\kappa_2)$ are instances of $\mi{EqO}$.
+ \item $(L,\tau_1, \kappa_1)$ and $(L,\tau_2, \kappa_2)$ are instances of $\mi{Pack}$, and 
 \end{itemize}
 Let $\mathcal{L}$ is a relation $\mathcal{L} : L \BETWEEN L$.
 Suppose $\mathcal{U} : \tau_1 \BETWEEN \tau_2$
@@ -510,17 +518,58 @@ respectively a relation and a relational action, satisfying:
   \item $(\BIND_{\kappa_1}, \BIND_{\kappa_2}) \in 
     \forall \mathcal{R},\mathcal{S}.~ \mathcal{F}~\mathcal{R} \to ((\mathcal{R} \to \mathcal{F}~\mathcal{S}) \to \mathcal{F}~\mathcal{S})$.
  \item $(\mi{new}_{\tau_1},\mi{new}_{\tau_2}) \in \mathcal{L} \to \mathcal{U}$,
- \item $(\mi{eq}_{\tau_1,\mu_1},\mi{eq}_{\tau_2,\mu_2}) \in \mathcal{U} \to \mathcal{U} \to \mathcal{F}~\mi{Bool}$
+ \item $(\mi{liftO}_{L,\tau_1,\mu_1,\sigma_1},\mi{liftO}_{L,\tau_2,\mu_2,\sigma_2}) \in ([\mathcal{L}] \to \mathcal{S}) \to [\mathcal{U}] \to \mathcal{F}~\mathcal{S}$
+   for all $\mathcal{S} :: \sigma_1 \BETWEEN \sigma_2$ satisfying 
+   $((\texteq)_{\sigma_1},(\texteq)_{\sigma_2}) \in \mathcal{S} \to \mathcal{S} \to \mi{Bool}$.
 \end{itemize}
 Then, for a function $f$ of type 
 \[
-\forall \alpha \mu. (\mi{Pack}~L~\alpha, \mi{EqO}~\alpha~\mu) \Rightarrow 
+\forall \alpha \mu. (\mi{PackM}~L~\alpha~\mu) \Rightarrow 
  \mi{Tree}~\alpha \to \mu~(\mi{Tree}~\alpha)
 \]
 we have $(f_{\tau_1,\kappa_1},f_{\tau_2,\kappa_2}) \in \mi{Tree}~\mathcal{U} \to \mathcal{F}~(\mi{Tree}~\mathcal{U})$.\qed
 \label{thm:ft}
 \end{theorem}
 
+
+\subsection{Preservation of Location Consistency}
+Beforehand the proofs, we prove the following lemma to use the property of $\mi{matchViews}$.
+\begin{lemma}[Location-Consistency of $\mi{xview}$]
+Suppose that $h$ has type 
+\(
+\forall \alpha \mu. (\mi{PackM}~L~\alpha~\mu) \Rightarrow 
+ \mi{Tree}~\alpha \to \mu~(\mi{Tree}~\alpha)
+\)
+and 
+$(\mi{xview},\dontcare) = \mi{runWriter}~(\mi{h}_{\mi{Loc}~\alpha,\mi{Writer}~[\mi{Result}~(\mi{Loc}~\alpha)]}~(\mi{assignIDs}~s))$ for a source $s$. Then, $\mi{xview}$ is consistent. 
+\label{lemma:xview}
+\end{lemma}
+
+\begin{proof}
+Let $s$ be a source and $E$ is the set $\mi{elem}~(\mi{assignIDs}~s)$.
+Then, it is worth nothing that we have that $v$ is location-consistent 
+if, all the elements $e$ in $\mi{elems}~v$ of the form of $e = \mi{Loc}~\dontcare~(\mi{Just}~\dontcare)$ are in $E$. 
+We use the free theorem on $h$. More concretely, we take 
+$\mathcal{U}$ and $\mathcal{F}$ as below.
+\[
+\bb
+  \mathcal{U} &=& \set{ (a,a) \mid 
+    a \in E \mbox{ if } a = \mi{Loc}~\dontcare~(\mi{Just}~\dontcare)}\\
+  \mathcal{F}~\mathcal{R} &=& \set{ (m_1,m_2) \mid (x_1,x_2) \in \mathcal{R} \mbox{ where } (x_1,\dontcare) = \mi{runWriter}~w_1, (x_2, \dontcare) = \mi{runWriter}~w_2}
+\ee
+\]
+Note that, by this definition, $\mi{Tree}~\mathcal{U}$ is diagonal
+relation, and $v$ such that $(v,v) \in \mi{Tree}~\mathcal{U}$ is
+location-consistent.  Then, if we prove that $\mathcal{U}$ and
+$\mathcal{F}$ satisfy the conditions, we have $(h,h) \in
+\mi{Tree}~\mathcal{U} \to \mathcal{F}~(\mi{Tree}~\mathcal{U})$. Since
+$(\mi{assignIDs}~s, \mi{assignIDs}) \in \mi{Tree}~\mathcal{U}$, we
+have $(\mi{xview}, \mi{xview}) \in \mi{Tree}~\mathcal{U}$. Thus, $\mi{xview}$ 
+is location consistent. 
+
+Then, our obligation is to check the condition to use the free theorem. 
+We omit the proof because it is straightforward for $\mathcal{U}$ and $\mathcal{F}$.
+\end{proof}
 
 \subsection{Proof of \ref{eq:get-put}}
 
@@ -543,13 +592,17 @@ At (*), we use the two properties
 $\mi{upd} = \mi{IntMap.empty}$ and $\mi{checkHistory}~\mi{IntMap.empty}~\mi{hist} = \mi{True}$. To show them, it suffices to show the following lemma.
 \begin{lemma}
 Let $\mi{xsrc}$ be $\mi{assignIDs}~s$.
-Suppose we have $\mi{W}~\mi{xview}~\mi{hist} = h~\mi{xsrc}$ 
-and $\mi{I}~\mi{v} = h~s$.
-Then, we have $\mi{fmap}~\mi{fst}~\mi{xview} = \mi{view}$ and 
+Suppose we have $(\mi{xview},\mi{hist}) = \mi{runWriter}~(h~\mi{xsrc})$ 
+and $\mi{Identity}~\mi{v} = h~s$.
+Then, we have $\mi{fmap}~\mi{body}~\mi{xview} = \mi{view}$ and 
 $\mi{checkHistory}~\mi{IntMap.empty}~\mi{hist} = \mi{True}$.
 \end{lemma}
 
 \begin{proof}
+In the proof, for simplicity, we write $I$ for $\mi{Identity}$ and 
+$\mi{W}$ for $\mi{WriterT}~(\mi{Identity}~x)$. Note that 
+$\mi{Writer}~\eta~\alpha$ is a synonym for $\mi{WriterT}~(\mi{Identity}~(\alpha,\eta)$ and $\mi{runWriter}$ is defined by $\mi{runWriter}~(\mi{WriterT}~(\mi{Identity}~x)) = x$.
+
 To simplify the notation, we write 
 $m_1$ and $m_2$ for $\mi{I}$ and $\mi{W}~(\mi{ObsEq}~(\mi{Loc}~\mi{L}))$
  respectively, and $t_1$ and $t_2$ for $\mi{L}$ and $\mi{Loc}~\mi{L}$, respectively.
