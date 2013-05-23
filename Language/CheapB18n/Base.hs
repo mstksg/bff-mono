@@ -145,6 +145,7 @@ instance PackM a (Loc a) (Writer (History (CheckResult (Loc a)))) where
     liftO obs xs = do { tell $ return $ CheckResult obs' xs (obs' xs)
                       ; return $ obs' xs }
         where obs' xs = obs (map body xs)
+
 ------------------------------------------------------
 
 
