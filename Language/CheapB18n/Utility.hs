@@ -27,7 +27,7 @@ deleteByM eq x [] = return []
 deleteByM eq x (y:ys) = 
     do { b <- eq x y 
        ; r <- deleteByM eq x ys 
-       ; return (if b then r else x:r) }
+       ; return (if b then r else y:r) }
 
 deleteFirstByM :: Monad m => (a -> a -> m Bool) -> a -> [a] -> m [a]
 deleteFirstByM eq x [] = return []
@@ -37,7 +37,7 @@ deleteFirstByM eq x (y:ys) =
              return ys
          else 
              do { r <- deleteFirstByM eq x ys
-                ; return $ x:r }}
+                ; return $ y:r }}
 
 unionByM :: Monad m => (a -> a -> m Bool) -> [a] -> [a] -> m [a]
 unionByM eq xs ys = 
