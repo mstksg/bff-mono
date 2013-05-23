@@ -6,21 +6,27 @@ module Language.CheapB18n.Utility
     ( 
      ifM, nubByM, deleteByM, deleteFirstByM, unionByM, 
      intersectByM, elemByM, groupByM, 
-     sortByM, insertByM, maximumByM, minimumByM
+     sortByM, insertByM, maximumByM, minimumByM, 
+     traceM 
      ) where 
 
 
 import Control.Monad 
+import Debug.Trace 
     
 ifM :: Monad m => m Bool -> m a -> m a -> m a 
 ifM m x y = m >>= (\b -> if b then x else y)
+
+traceM :: Monad m => m String -> m a -> m a 
+traceM m y = do { x <- m; trace x y }
 
 nubByM :: Monad m => (a -> a -> m Bool) -> [a] -> m [a]
 nubByM eq xs = f xs 
     where
       f []     = return []
       f (x:xs) = do { r <- deleteByM eq x xs
-                    ; return $ x:r }
+                    ; y <- f r
+                    ; return $ x:y }
 
 deleteByM :: Monad m => (a -> a -> m Bool) -> a -> [a] -> m [a]
 deleteByM eq x [] = return []
