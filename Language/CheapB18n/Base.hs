@@ -1,7 +1,7 @@
 {-#
   LANGUAGE 
-    FlexibleInstances, MultiParamTypeClasses, UndecidableInstances, 
-    FunctionalDependencies, Rank2Types, ScopedTypeVariables
+    FlexibleInstances, MultiParamTypeClasses, 
+    FunctionalDependencies, Rank2Types
   #-}
 
 
@@ -151,8 +151,7 @@ instance PackM a (Loc a) (Writer (History (CheckResult (Loc a)))) where
 
 -- | Construction of a backward transformation (or, \"put\") from a
 --   polymorphic function.
-bwd :: forall c vf sf e n. 
-       (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
+bwd :: (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
         MonadError e n, Error e) =>
        (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
            sf c -> vf c -> n (sf c)
@@ -161,8 +160,6 @@ bwd pget =
         do { let xsrc = assignIDs src
            ; let (xview, hist) 
                    = runWriter $ pget xsrc 
-                      :: (vf (Loc c), History (CheckResult (Loc c)))
-                     -- type inferece 
            ; upd <- matchViews xview view 
            ; if checkHistory (update upd) hist then 
                  return $ fmap (body . update upd) xsrc 
