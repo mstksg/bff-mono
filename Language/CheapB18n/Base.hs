@@ -1,7 +1,7 @@
 {-#
   LANGUAGE 
     FlexibleInstances, MultiParamTypeClasses, UndecidableInstances, 
-    FunctionalDependencies, Rank2Types
+    FunctionalDependencies, Rank2Types, ScopedTypeVariables
   #-}
 
 
@@ -35,7 +35,7 @@ class Pack conc abs | abs -> conc where
     new :: conc -> abs 
 
 class (Pack conc abs, Monad m, Functor m) => 
-       PackM conc abs m | m -> abs where
+       PackM conc abs m where
     liftO :: Eq r => ([conc] -> r) -> ([abs] -> m r)
     -- ^ lifting @conc@-level observations to @abs@ level, with 
     --   recording the examined values and the observed result. 
@@ -151,14 +151,18 @@ instance PackM a (Loc a) (Writer (History (CheckResult (Loc a)))) where
 
 -- | Construction of a backward transformation (or, \"put\") from a
 --   polymorphic function.
-bwd :: (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
+bwd :: forall c vf sf e n. 
+       (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
         MonadError e n, Error e) =>
        (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
            sf c -> vf c -> n (sf c)
 bwd pget =
     \src view ->
         do { let xsrc = assignIDs src
-           ; let (xview, hist) = runWriter $ pget xsrc 
+           ; let (xview, hist) 
+                   = runWriter $ pget xsrc 
+                      :: (vf (Loc c), History (CheckResult (Loc c)))
+                     -- type inferece 
            ; upd <- matchViews xview view 
            ; if checkHistory (update upd) hist then 
                  return $ fmap (body . update upd) xsrc 

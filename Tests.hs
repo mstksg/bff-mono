@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable  #-}
 
 import Language.CheapB18n 
 
@@ -52,6 +52,7 @@ prop_assignIDsFree s =
     all (\y -> y `elem` xs) ys 
     where
       (xview, hist) = runWriter $ links (assignIDs s)
+                       :: (Tree (Loc Label), History (CheckResult (Loc Label)))
       _ = checkHistory (update I.empty) hist 
       ys = concatMap f $ Data.Foldable.toList $ xview 
       xs = concatMap f $ Data.Foldable.toList $ assignIDs s 
