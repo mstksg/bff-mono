@@ -36,10 +36,6 @@ liftEq eq t1 t2 =
 
 type BFilter a m = Tree a -> ListT m (Tree a) 
 
--- liftEq' :: (PackM c a m, Functor t, Foldable t, Eq (t ())) => 
---           (c -> c -> Bool) -> t a -> t a -> ListT m Bool
--- liftEq' eq t1 t2 = ListT $ fmap (:[]) $ liftEq eq t1 t2 
-
 label (N x _) = x 
 
 data L = A String -- Attribute 
@@ -125,10 +121,6 @@ test_src2 = reviews [ entry [ title [t "Data on the Web"]
       
 
 
--- liftO'  p x    = ListT $ fmap (:[]) $ liftO p x 
--- liftO1' p x    = ListT $ fmap (:[]) $ liftO1 p x 
--- liftO2' p x y  = ListT $ fmap (:[]) $ liftO2 p x y 
-
 ofLabel :: (Eq c, PackM c a m) => a -> BFilter a m 
 ofLabel l t = do { b <- lift $ liftO2 (==) l (label t)
                  ; if b then return t else mzero }
@@ -137,27 +129,22 @@ labelWith :: (Eq c, PackM c a m) => (c -> Bool) -> BFilter a m
 labelWith p t = do { b <- lift $ liftO1 p (label t)
                    ; if b then return t else mzero }
 
-children :: Monad m => Tree a -> ListT m (Tree a)
+children :: Monad m => BFilter a m 
 children (N e ts) = ListT $ return ts 
-
--- childrenOfLabel l = children >=> obLabel 
 
 childrenWith f = children >=> f 
 
 
--- withLabel :: (Eq c, PackM c a m) => a -> Tree a -> ListT m (Tree a)
--- withLabel t (N e ts) = p $ map (g t) ts 
---     where
---       p []     = mzero 
---       p (x:xs) = x `mplus` p xs 
---       g t (n@(N e ts)) = do { assertM $ liftO2' (==) e t
---                             ; return n }
+
+union :: Monad m => BFilter a m -> BFilter a m -> BFilter a m 
+union f1 f2 t = f1 t `mplus` f2 t 
 
 deepest f (t@(N l ts)) = do { ck <- gather $ f t 
                             ; case ck of 
                                 [] -> msum $ map (deep f) ts 
                                 _  -> do { let rs = map (deep f) ts 
                                          ; msum $ (return t):rs }}
+
 
 deep f t = bfs [t] [] 
     where
@@ -169,12 +156,15 @@ deep f t = bfs [t] []
                                         _  -> mplus (return t) (bfs rest qs) }
                                               
 
--- findAll t (n@(N e ts))
---     = do { b <- liftO2' (==) e t 
---          ; (if b then return n else mzero) `mplus` findAlls t ts}
---     where
---       findAlls t ts = foldr mplus mzero $ map (findAll t) ts 
-                                 
+multi f t = bfs [t] [] 
+    where
+      bfs [] [] = mzero 
+      bfs [] qs = bfs (reverse qs) [] 
+      bfs (t@(N l ts):rest) qs = do { ck <- gather $ f t 
+                                    ; case ck of 
+                                        [] -> bfs rest (reverse ts ++ qs)
+                                        _  -> mplus (return t) (bfs rest (reverse ts ++ qs)) }
+                                              
 
        
 gather :: Monad m => ListT m a -> ListT m [a]
@@ -186,9 +176,11 @@ pick :: Monad m => ListT m a -> m a
 pick (ListT x) = do { a <- x
                     ; return $ head a }
 
+isOk :: Monad m => BFilter a m -> (Tree a -> ListT m Bool)
 isOk f t = do { ck <- gather $ f t 
               ; return $ not (null ck) }
-       
+
+guardM :: MonadPlus m => m Bool -> m ()        
 guardM x = x >>= guard 
 
 attr :: Pack L a => String -> a 
@@ -198,7 +190,7 @@ el   = new . E
 txt :: Pack L a => String -> a 
 txt  = new . T
 
-withLabel l = childrenWith (ofLabel l) 
+childrenOfLabel l = childrenWith (ofLabel l) 
 
 -- Q1 
 q1 t = pick $ 
@@ -228,18 +220,18 @@ test_view_q1'
 
 -- Q2 
 q2 t = pick $
-       do { ts <- gather $ do { b <- withLabel (new $ E "book") t 
-                              ; t <- withLabel (new $ E "title") b
-                              ; a <- withLabel (new $ E "author") b
+       do { ts <- gather $ do { b <- childrenOfLabel (new $ E "book") t 
+                              ; t <- childrenOfLabel (new $ E "title") b
+                              ; a <- childrenOfLabel (new $ E "author") b
                               ; return $ N (new $ E "result") [t,a] }
           ; return $ N (new $ E "results") ts }
 
 
 -- Q3 
 q3 t = pick $ 
-       do { ts <- gather $ do { b  <- withLabel (new $ E "book") t 
-                              ; ts <- gather $ withLabel (new $ E "title") b 
-                              ; as <- gather $ withLabel (new $ E "author") b 
+       do { ts <- gather $ do { b  <- childrenOfLabel (new $ E "book") t 
+                              ; ts <- gather $ childrenOfLabel (new $ E "title") b 
+                              ; as <- gather $ childrenOfLabel (new $ E "author") b 
                               ; return $ N (new $ E "result") (ts++as) }
           ; return $ N (new $ E "results") ts }
 
@@ -247,13 +239,13 @@ q3 t = pick $
 q4 t = pick $ do { ts <- gather $ 
                          do { (last, first) <- lf
                             ; ts <- gather $ 
-                                    do { b <- withLabel (new $ E "book") t 
-                                       ; a <- withLabel (new $ E "author") b
-                                       ; f <- withLabel (new $ E "first" ) a
-                                       ; l <- withLabel (new $ E "last")   a
+                                    do { b <- childrenOfLabel (new $ E "book") t 
+                                       ; a <- childrenOfLabel (new $ E "author") b
+                                       ; f <- childrenOfLabel (new $ E "first" ) a
+                                       ; l <- childrenOfLabel (new $ E "last")   a
                                        ; guardM $ lift $ liftEq (==) f first 
                                        ; guardM $ lift $ liftEq (==) l last 
-                                       ; withLabel (new $ E "title") b}
+                                       ; childrenOfLabel (new $ E "title") b}
                             ; return $ N (new $ E "result") 
                                          ([N (new $ E "author") [
                                                  N (new $ E"last") [last],
@@ -264,12 +256,12 @@ q4 t = pick $ do { ts <- gather $
       lf = do { lf <- gather $ 
                       do { as    <- gather $ deep (ofLabel (new $ E "author")) t
                          ; lasts <- gather $ do { a <- ListT $ return as
-                                                ; withLabel (new $ E "last") a}
+                                                ; childrenOfLabel (new $ E "last") a}
                          ; last  <- ListT $
                                      nubByM (liftEq (==)) lasts
                          ; firsts <- gather $ do { a <- ListT $ return as 
-                                                 ; f <- withLabel (new $ E "first") a
-                                                 ; l <- withLabel (new $ E "last") a
+                                                 ; f <- childrenOfLabel (new $ E "first") a
+                                                 ; l <- childrenOfLabel (new $ E "last") a
                                                  ; guardM $ lift $ liftEq (==) l last 
                                                  ; return f }
                          ; first  <- ListT $ 
@@ -303,11 +295,11 @@ q4 t = pick $ do { ts <- gather $
 -- Q5 
 q5 t1 t2 = pick $ do { bs <- gather $ do { b  <- deep (ofLabel (el "book")) t1 
                                          ; a  <- deep (ofLabel (el "entry")) t2 
-                                         ; tb <- withLabel (el "title") b 
-                                         ; ta <- withLabel (el "title") a
+                                         ; tb <- childrenOfLabel (el "title") b 
+                                         ; ta <- childrenOfLabel (el "title") a
                                          ; guardM $ lift $ liftEq (==) tb ta
-                                         ; p1 <- withLabel (el "price") b >>= children 
-                                         ; p2 <- withLabel (el "price") a >>= children 
+                                         ; p1 <- childrenOfLabel (el "price") b >>= children 
+                                         ; p2 <- childrenOfLabel (el "price") a >>= children 
                                          ; return $ N (el "book-with-price") 
                                                       [ta,
                                                          N (el "price-bstore2") [p1],
@@ -323,9 +315,9 @@ data MyPair a = MyPair (Tree a) (Tree a) deriving (Traversable, Functor, Foldabl
 -- Q6 
 q6 t = pick $ do { bs <- gather 
                          $ do { b  <- deep (ofLabel (el "book")) t 
-                              ; as <- gather $ withLabel (el "author") b
+                              ; as <- gather $ childrenOfLabel (el "author") b
                               ; guard (length as > 0)
-                              ; t  <- withLabel (el "title") b 
+                              ; t  <- childrenOfLabel (el "title") b 
                               ; return $ N (el "book") 
                                            ([t] ++ take 2 as ++ 
                                             (if length as >= 3 then 
@@ -334,33 +326,34 @@ q6 t = pick $ do { bs <- gather
                                                  []))}
                  ; return $ N (el "bib") bs }
 
+-- Q7 
 q7 t = pick $ do { bs <- gather 
                          $ do { b <- deep (ofLabel (el "book")) t 
-                              ; p <- withLabel (el "publisher") b >>= children
-                              ; y <- withLabel (attr "year") b >>= children 
+                              ; p <- childrenOfLabel (el "publisher") b >>= children
+                              ; y <- childrenOfLabel (attr "year") b >>= children 
                               ; guardM $ lift $ liftO2 (==) (label p) (txt "Addison-Wesley")
                               ; guardM $ lift $ liftO2 ((>) `on` g) (label y) (txt "1991")
                               ; return b }
                  ; bs' <- sortByM cmpTitle bs 
                  ; bs'' <- gather $ do { b <- ListT $ return bs'  
-                                       ; y <- withLabel (attr "year") b
-                                       ; t <- withLabel (el   "title") b
+                                       ; y <- childrenOfLabel (attr "year") b
+                                       ; t <- childrenOfLabel (el   "title") b
                                        ; return $ N (el "book") [y,t] }
                  ; return $ N (el "bib") bs'' }
     where
       g (T t) = read t :: Int  
       cmpTitle :: PackM L a m => Tree a -> Tree a -> ListT m Ordering 
       cmpTitle b1 b2 =
-          do { t1 <- withLabel (el "title") b1 >>= children 
-             ; t2 <- withLabel (el "title") b2 >>= children 
+          do { t1 <- childrenOfLabel (el "title") b1 >>= children 
+             ; t2 <- childrenOfLabel (el "title") b2 >>= children 
              ; lift $ liftO2 compare (label t1) (label t2) }
                                                   
-
+-- Q8
 q8 t = pick $ do { b <- deep (ofLabel (el "book")) t 
                  ; e <- orEnded b 
                  ; c <- children e
                  ; guardM $ isOk containSuciu c
-                 ; t <- withLabel (el "title") b 
+                 ; t <- childrenOfLabel (el "title") b 
                  ; return $ N (el "book") [t,e] }
     where
       orEnded = deep (labelWith orEndedL) 
@@ -389,25 +382,93 @@ test_src_q9 =
       title     = N (E "title")
       section   = N (E "section") 
 
+-- Q9 
 q9 t = pick 
-       $ do { ts <- gather $ do { cs <- findSC t 
-                                ; ti <- withLabel (el "title") cs 
+       $ do { ts <- gather $ do { cs <- multi (Main.union (ofLabel (el "chapter")) (ofLabel (el "section"))) t  -- findSC t 
+                                ; ti <- childrenOfLabel (el "title") cs 
                                 ; tt <- children ti 
                                 ; guardM $ containXML (label tt)
                                 ; return ti }
             ; return $ N (el "results") ts }
     where
-      findSC (N e ts) = 
-          do { b <- lift $ liftO1 scL e 
-             ; (if b then return (N e ts) else mzero) 
-               `mplus` msum (map findSC ts) }
-          where
-            scL (E t) = t == "chapter" || t == "section"
-            scL _     = False 
       containXML l = lift $ liftO1 (\x -> case x of 
                                             T x -> "XML" `isInfixOf` x
                                             _   -> False) l 
           
-             
+
+test_src_q10
+    = prices [
+        book [ title [t "Advanced Programming in the Unix environment"]
+             , source [t "bstore2.example.com"]
+             , price [t "65.95"]
+             ]
+      , book [ title [t "Advanced Programming in the Unix environment"]
+             , source [t "bstore1.example.com"]
+             , price [t "65.95"]
+             ]
+      , book [ title [t "TCP/IP Illustrated"]
+             , source [t "bstore2.example.com"]
+             , price     [t "65.95"]
+             ]
+      , book [ title [t "TCP/IP Illustrated"] 
+             , source [t "bstore1.example.com"]
+             , price     [t "65.95"]
+             ]
+      , book [ title  [t "Data on the Web"]
+             , source [t "bstore2.example.com"]
+             , price  [t "34.95"]
+             ]
+      , book [ title  [t "Data on the Web"] 
+             , source [t "bstore1.example.com"]
+             , price  [t "39.95"]
+             ]
+      ]
+    where 
+      t x       = N (T x) []
+      prices    = N (E "prices") 
+      price     = N (E "price") 
+      book      = N (E "book") 
+      title     = N (E "title")
+      source    = N (E "source")
+
+
+-- Q10
+q10 t = pick $ do { ps <- gather $ 
+                          do { ti  <- distinctTitles t
+                             ; ps  <- gather $ 
+                                      do { b   <- deep (ofLabel (el "book")) t
+                                         ; ti' <- children b >>= ofLabel (el "title") >>= children 
+                                         ; guardM $ lift $ liftEq (==) ti ti' 
+                                         ; childrenOfLabel (el "price") b >>= children }
+                             ; ps' <- mapM (lift . liftO1 id . label) ps 
+                             ; return $ N (el "minprice") 
+                                          [N (attr "title") [ti], 
+                                           N (el "price") [N (new $ minim ps') []]] }
+                  ; return $ N (el "results") ps }
+    where
+      minim = minimumBy (compare `on` f)
+          where
+            f (T x) = read x :: Float 
+      distinctTitles t = 
+          do { ts <- gather $ do { b <- deep (ofLabel (el "book")) t
+                                 ; childrenOfLabel (el "title") b >>= children }
+             ; ts' <- lift $ nubByM (liftEq (==)) ts 
+             ; ListT $ return ts' }
 
               
+-- Q11 
+q11 t = pick $ do { bs1 <- gather $ booksWithAuthor t 
+                  ; bs2 <- gather $ booksWithEditor t 
+                  ; return $ N (el "bib") (bs1 ++ bs2) }
+    where
+      booksWithAuthor t = 
+          do { b <- deep (ofLabel (el "book")) t 
+             ; a <- children b >>= ofLabel (el "author")
+             ; t <- children b >>= ofLabel (el "title")
+             ; return $ N (el "book") [t,a] }
+      booksWithEditor t =
+          do { b <- deep (ofLabel (el "book")) t 
+             ; e <- children b >>= ofLabel (el "editor")
+             ; a <- children e >>= ofLabel (el "affiliation")
+             ; t <- children b >>= ofLabel (el "title")
+             ; return $ N (el "reference") [t,a]}
