@@ -15,7 +15,7 @@ import qualified Data.Foldable as Foldable
 import Data.Function (on) 
 
 import Language.CheapB18n.CheckHistory 
-
+import qualified Language.CheapB18n.EquivalenceClass as UF 
 
 
 -- from containers 
@@ -40,6 +40,9 @@ class (Pack conc abs, Monad m, Functor m) =>
     -- ^ lifting @conc@-level observations to @abs@ level, with 
     --   recording the examined values and the observed result. 
 
+    eqSync :: Eq conc => abs -> abs -> m Bool 
+    -- ^ lifting @conc@-level equivalence with synchronization 
+
 -- | A special version of 'liftO' for unary observations.
 liftO1 :: (PackM conc abs m, Eq r) => (conc -> r) -> abs -> m r 
 liftO1 f x = liftO (\[x] -> f x) [x]
@@ -51,15 +54,14 @@ liftO2 :: (PackM conc abs m, Eq r)
 liftO2 f x y = liftO (\[x,y] -> f x y) [x,y]
 
 
-
 -- | Abstract pointer.
 --   @InSource i@ means i-th position in the original source. 
 --   @InTrans@ means outside of the original source.
-data Index = InSource Int | InTrans
-           deriving (Show, Eq, Ord)
+data Location = InSource Int | InTrans
+                deriving (Show, Eq, Ord)
 
 -- | Datum with its pointer 
-data Loc a = Loc { body :: a, index :: Index }
+data Loc a = Loc { body :: a, location :: Location }
            deriving (Show, Eq, Ord)
 
 -- | Update is a mapping from source locations to elements
@@ -87,7 +89,11 @@ assignIDs t =
                    ; put (i+1)
                    ; return $ Loc x (InSource i) }
 
+errMsgInconsistent :: Error e => e 
+errMsgInconsistent = strMsg "Inconsistent Update!"
 
+errMsgConstant :: Error e => e 
+errMsgConstant = strMsg "Update on Constant!"
 
 matchViews :: (Eq a,Functor f,Foldable f, Eq (f ()), MonadError e m, Error e)
               => f (Loc a) -> f a -> m (Update a)
@@ -99,7 +105,7 @@ matchViews xview view =
                foldM (\m (i,y) -> 
                        case I.lookup i m of 
                          Just z | z /= y -> 
-                             throwError $ strMsg "Inconsistent Update!"
+                             throwError errMsgInconsistent 
                          Just _ -> 
                              return m 
                          Nothing -> 
@@ -115,16 +121,51 @@ matchViews xview view =
                                     InSource i -> [(i,x)]) (Foldable.toList xview)
       shrink m = I.differenceWith (\a b -> if a == b then Nothing else Just a) m initMap 
 
-      d (x,y) = case index x of 
+      d (x,y) = case location x of 
                   InSource i -> return [(i,y)]
                   InTrans ->
                       if body x == y then 
                           return []
                       else 
-                          throwError $ strMsg "Update of Constant!"
+                          throwError errMsgConstant 
 
       isShapeEqual :: (Functor f, Eq (f ())) => f a -> f b -> Bool 
       isShapeEqual x y =  fmap (const ()) x == fmap (const ()) y 
+
+
+
+expandUpdate :: (MonadError e m, Error e, Eq a ) 
+                => Update a -> UF.UnionFindTree Location -> m (Update a)
+expandUpdate upd t =
+    evalStateT newUpd t 
+    where
+--      eq :: Monad m => Location -> Location -> StateT (UF.UnionFindTree Location) m Bool
+      eq x y = do { t <- get 
+                  ; let (b,t') = UF.equals x y t 
+                  ; put t'
+                  ; return b }
+      cls x = do { t <- get 
+                 ; return $ UF.equivalenceClass x t }
+      newUpd = initUpd >>= 
+               foldM (\upd (i,x) -> 
+                          case I.lookup i upd of 
+                            Just y -> 
+                                if x == y then 
+                                    return upd 
+                                else 
+                                    throwError errMsgInconsistent 
+                            Nothing -> 
+                                return $ I.insert i x upd) I.empty 
+      initUpd = 
+          mapM (\(i,v) -> 
+                    do { b <- eq (InSource i) InTrans
+                       ; if b then 
+                             throwError errMsgConstant 
+                         else
+                             do { cs <- cls (InSource i)
+                                ; return [ (j,v) | InSource j <- cs ] }}) (I.toList upd)
+          >>= (return . concat) 
+
 
 ------------------------------------------------------
 
@@ -135,19 +176,38 @@ instance Pack a (Identity a) where
 -- | used internally 
 instance PackM a (Identity a) Identity where 
     liftO obs xs = return $ obs (map runIdentity xs)
+    eqSync x y = return $ runIdentity x == runIdentity y 
+
 
 -- | used internally 
 instance Pack a (Loc a) where 
     new a = Loc a InTrans 
 
+type W a = WriterT (History (CheckResult (Loc a))) 
+                   (State (UF.UnionFindTree Location))
+
+
+unW :: W a b -> (b, History (CheckResult (Loc a)), UF.UnionFindTree Location)
+unW m = 
+    let ((x,h),t) = runState (runWriterT m) UF.empty 
+    in  (x,h,t) 
+
 -- | used internally 
-instance PackM a (Loc a) (Writer (History (CheckResult (Loc a)))) where 
+instance PackM a (Loc a) (W a) where 
     liftO obs xs = do { tell $ return $ CheckResult obs' xs (obs' xs)
                       ; return $ obs' xs }
         where obs' xs = obs (map body xs)
 
-------------------------------------------------------
+    eqSync x y = if body x == body y then 
+                     do { t <- get 
+                        ; put $ UF.equate (location x) (location y) t     
+                        ; return True }
+                 else
+                     do { _ <- liftO2 (==) x y 
+                        ; return False }
+                          
 
+------------------------------------------------------
 
 -- | Construction of a backward transformation (or, \"put\") from a
 --   polymorphic function.
@@ -157,14 +217,20 @@ bwd :: (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
            sf c -> vf c -> n (sf c)
 bwd pget =
     \src view ->
-        do { let xsrc = assignIDs src
-           ; let (xview, hist) 
-                   = runWriter $ pget xsrc 
-           ; upd <- matchViews xview view 
-           ; if checkHistory (update upd) hist then 
-                 return $ fmap (body . update upd) xsrc 
+        do { let xsrc = assignIDs src 
+           ; let (xview, hist, uft) = unW' (pget xsrc)
+           ; upd  <- matchViews xview view 
+           ; upd' <- expandUpdate upd uft 
+           ; if checkHistory (update upd') hist then 
+                 return $ fmap (body . update upd') xsrc 
              else
                  throwError $ strMsg "Violated Invariants"}
+    where
+      -- for type inference 
+      unW' = unW :: W c (sf (Loc c))
+                    -> (sf (Loc c), 
+                        History (CheckResult (Loc c)), 
+                        UF.UnionFindTree Location) 
 
 
 -- | Construction of a forward transformation (or, \"get\") from a
@@ -178,22 +244,22 @@ fwd pget =
         in fmap runIdentity r
 
 
--- Maybe the following functions would be useful in practice. 
+-- -- Maybe the following functions would be useful in practice. 
 
-fwdI :: (Traversable vf, Traversable sf) =>
-       (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
-           sf (Loc c) -> (vf (Loc c), History (CheckResult (Loc c)))
-fwdI pget =
-    \src -> 
-        let (xview,hist) = runWriter $ pget src 
-        in (xview, hist)
+-- fwdI :: (Traversable vf, Traversable sf) =>
+--        (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
+--            sf (Loc c) -> (vf (Loc c), History (CheckResult (Loc c)))
+-- fwdI pget =
+--     \src -> 
+--         let (xview,hist) = runWriter $ pget src 
+--         in (xview, hist)
 
 
-bwdI :: (Traversable sf, Eq c, MonadError e n, Error e) =>
-           History (CheckResult (Loc c)) -> sf (Loc c)
-               -> Update c -> n (sf (Loc c))
-bwdI hist xsrc upd =
-    if checkHistory (update upd) hist then 
-        return $ fmap (update upd) xsrc 
-    else
-        throwError $ strMsg "Violated Invariants"
+-- bwdI :: (Traversable sf, Eq c, MonadError e n, Error e) =>
+--            History (CheckResult (Loc c)) -> sf (Loc c)
+--                -> Update c -> n (sf (Loc c))
+-- bwdI hist xsrc upd =
+--     if checkHistory (update upd) hist then 
+--         return $ fmap (update upd) xsrc 
+--     else
+--         throwError $ strMsg "Violated Invariants"

@@ -14,7 +14,7 @@
 
 module Language.CheapB18n 
     (
-     Pack, PackM, new, liftO, liftO1, liftO2, 
+     Pack, PackM, new, liftO, eqSync, liftO1, liftO2, 
      fwd, bwd
     ) where 
 
