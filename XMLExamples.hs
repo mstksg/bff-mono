@@ -190,19 +190,25 @@ el   = new . E
 txt :: Pack L a => String -> a 
 txt  = new . T
 
+f /> g = f >=> children >=> g 
+
+keep :: Monad m => BFilter a m 
+keep = return 
+
 childrenOfLabel l = childrenWith (ofLabel l) 
+
 
 -- Q1 
 q1 t = pick $ 
-       do { bs <- gather $ childrenWith (ofLabel (new $ E "book")) t >>= h
+       do { bs <- gather $ (keep /> (ofLabel (new $ E "book") >=> h)) t
           ; return $ N (new $ E "bib") bs }
     where
-      h b = do { y  <- childrenWith (ofLabel (new $ A "year")) b >>= children 
-               ; ts <- gather $ childrenWith (ofLabel (new $ E "title")) b
-               ; p  <- childrenWith (ofLabel (new $ E "publisher")) b >>= children 
+      h b = do { y  <- (keep /> ofLabel (new $ A "year") /> keep) b -- childrenWith (ofLabel (new $ A "year")) b >>= children 
+               ; t  <- (keep /> ofLabel (new $ E "title")) b -- childrenWith (ofLabel (new $ E "title")) b
+               ; p  <- (keep /> ofLabel (new $ E "publisher") /> keep) b -- childrenWith (ofLabel (new $ E "publisher")) b >>= children 
                ; guardM $ lift $ liftO2 ((>) `on` g) (label y) (new $ T "1991")
                ; guardM $ lift $ liftO2 (==) (label p) (new $ T "Addison-Wesley")
-               ; return $ N (new $ E "book") (N (new $ A "year") [y] : ts) } 
+               ; return $ N (new $ E "book") [N (new $ A "year") [y], t] } 
           where g (T t) = read t :: Int  
 
 test_view_q1 

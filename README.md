@@ -4,7 +4,7 @@ cheap-b18n
 This package is an implementation of a paper: 
 
     Kazutaka Matsuda and Meng Wang: 
-      A Type Class for Bidirectionalization: 
+      Bidirectionalization for Free with Runtime Recording: 
       Or, a Light-Weight Approach to the View Update Problem
 
 The package provides a type class `PackM`. Suppose one defines a

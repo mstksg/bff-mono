@@ -163,7 +163,7 @@ instance Arbitrary a => Arbitrary (Tree a) where
         ++
         [ Node x' (y':xs') | y' <- shrink y, Node x' xs' <- shrink (Node x xs) ]
 
-instance Arbitrary Index where 
+instance Arbitrary Location where 
     arbitrary = do { v <- arbitrary 
                    ; case v of 
                        Nothing -> return InTrans
