@@ -102,7 +102,7 @@ sortByM ord xs = ms (map (:[]) xs)
       merge (x:xs) (y:ys) = 
           do { o <- ord x y 
              ; case o of 
-                 EQ -> liftM (x:) $  merge xs ys 
+                 EQ -> liftM (x:) $ liftM (y:) $  merge xs ys 
                  LT -> liftM (x:) $ merge xs (y:ys)
                  GT -> liftM (y:) $ merge (x:xs) ys }
 

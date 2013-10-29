@@ -43,6 +43,10 @@ class (Pack conc abs, Monad m, Functor m) =>
     eqSync :: Eq conc => abs -> abs -> m Bool 
     -- ^ lifting @conc@-level equivalence with synchronization 
 
+    compareSync :: Ord conc => abs -> abs -> m Ordering 
+    -- ^ lifting @conc@-level ordering.
+    --   It synchronizes the elements if the comparison result is EQ 
+
 -- | A special version of 'liftO' for unary observations.
 liftO1 :: (PackM conc abs m, Eq r) => (conc -> r) -> abs -> m r 
 liftO1 f x = liftO (\[x] -> f x) [x]
@@ -176,9 +180,9 @@ instance Pack a (Identity a) where
 -- | used internally 
 instance PackM a (Identity a) Identity where 
     liftO obs xs = return $ obs (map runIdentity xs)
-    eqSync x y = return $ runIdentity x == runIdentity y 
-
-
+    eqSync x y  = return $ runIdentity x == runIdentity y 
+    compareSync x y = return $ runIdentity x `compare` runIdentity y 
+                 
 -- | used internally 
 instance Pack a (Loc a) where 
     new a = Loc a InTrans 
@@ -205,6 +209,15 @@ instance PackM a (Loc a) (W a) where
                  else
                      do { _ <- liftO2 (==) x y 
                         ; return False }
+    compareSync x y = do { c <- liftO2 compare x y 
+                         ; case c of 
+                             EQ -> do { t <- get
+                                      ; put $ UF.equate (location x) (location y) t 
+                                      ; return EQ }
+                             GT -> return GT 
+                             LT -> return LT }
+                                 
+                          
                           
 
 ------------------------------------------------------
