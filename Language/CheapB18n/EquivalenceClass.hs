@@ -101,7 +101,7 @@ equate a1 a2 uft =
                insert root2 root1 rk2 rk1 m t c 
     where
       insert r1 r2 rk1 rk2 m t c =
-          let t'  = IM.insert r1 (- (rk2 + 1)) t
+          let t'  = IM.insert r1 (- (rk1 + rk2)) t
               t'' = IM.insert r2 r1 t'
               c1  = fromJust $ IM.lookup r1 c
               c2  = fromJust $ IM.lookup r2 c 
