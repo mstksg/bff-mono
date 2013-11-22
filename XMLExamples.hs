@@ -213,7 +213,7 @@ q1 t = pick $
 
 test_view_q1 
     = N (E "bib") [N (E "book") [N (A "year") [N (T "1994") []],
-                                 N (E "title") [N (T "TCP/IP illustrated") []]],
+                                 N (E "title") [N (T "TCP/IP Illustrated (Second Edition)") []]],
                    N (E "book") [N (A "year") [N (T "1992") []],
                                  N (E "title") [N (T "Advanced Programming in the Unix Environment") []]]]
 

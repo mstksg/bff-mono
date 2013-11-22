@@ -1,7 +1,8 @@
 {-#
   LANGUAGE 
     FlexibleInstances, MultiParamTypeClasses, 
-    FunctionalDependencies, Rank2Types
+    FunctionalDependencies, Rank2Types,
+    ImpredicativeTypes, FlexibleContexts 
   #-}
 
 
@@ -15,8 +16,13 @@ import qualified Data.Foldable as Foldable
 import Data.Function (on) 
 
 import Language.CheapB18n.CheckHistory 
-import qualified Language.CheapB18n.EquivalenceClass as UF 
+-- import qualified Language.CheapB18n.EquivalenceClass as UF 
 
+
+import Language.CheapB18n.EquivMap (EquivMap) 
+import qualified Language.CheapB18n.EquivMap as EM 
+import Language.CheapB18n.EquivWitness (EquivWitness)
+import qualified Language.CheapB18n.EquivWitness as EW
 
 -- from containers 
 import Data.IntMap (IntMap)
@@ -69,19 +75,36 @@ data Loc a = Loc { body :: a, location :: Location }
            deriving (Show, Eq, Ord)
 
 -- | Update is a mapping from source locations to elements
-type Update a = IntMap a
+-- type Update a = IntMap a
+type Update a = EquivMap Int a 
 
 ----------------------------------------------------------------
 
 
 
 -- | @update upd elem@ applies the update @upd@ to the source element @elem@.
-update :: Update a -> Loc a -> Loc a
-update upd (Loc a InTrans)        = Loc a InTrans
-update upd (Loc a (InSource i)) =
-    case I.lookup i upd of 
-      Nothing -> Loc a (InSource i)
-      Just b  -> Loc b (InSource i)
+-- update :: Update a -> Loc a -> (Loc a, Update a)
+-- update upd (Loc a InTrans) = (Loc a Intrace, upd) 
+-- update upd (Loc a (InSource i)) =
+--     case EM.lookup i upd of 
+--       (Nothing, upd') -> (Loc a (InSource i), upd')
+--       (Just b , upd') -> (Loc b (InSource i), upd') 
+
+-- update :: Update a -> Loc a -> Loc a
+-- update upd (Loc a InTrans)        = Loc a InTrans
+-- update upd (Loc a (InSource i)) =
+--     case I.lookup i upd of 
+--       Nothing -> Loc a (InSource i)
+--       Just b  -> Loc b (InSource i)
+
+update :: MonadState (Update a) m => Loc a -> m (Loc a)
+update (Loc a InTrans)      = return $ Loc a InTrans 
+update (Loc a (InSource i)) = 
+    do { r <- EM.lookupM i
+       ; case r of 
+           Nothing -> return $ Loc a (InSource i)
+           Just b  -> return $ Loc b (InSource i)}
+
 
 
 -- | 'assignIDs' assigns a distict 'Index' for each source element. 
@@ -99,76 +122,98 @@ errMsgInconsistent = strMsg "Inconsistent Update!"
 errMsgConstant :: Error e => e 
 errMsgConstant = strMsg "Update on Constant!"
 
+
+{- This version does not check the all the duplicates are updated as in 
+   the same way -} 
 matchViews :: (Eq a,Functor f,Foldable f, Eq (f ()), MonadError e m, Error e)
-              => f (Loc a) -> f a -> m (Update a)
-matchViews xview view =
+              => f (Loc a) -> f a -> EquivWitness Int -> m (Update a) 
+matchViews xview view equiv =
     if isShapeEqual xview view then 
-        do { let pairs = zip (Foldable.toList xview) (Foldable.toList view)
-           ; pairs' <- mapM d pairs >>= (return . concat)
-           ; m <- 
-               foldM (\m (i,y) -> 
-                       case I.lookup i m of 
-                         Just z | z /= y -> 
-                             throwError errMsgInconsistent 
-                         Just _ -> 
-                             return m 
-                         Nothing -> 
-                             return $ I.insert i y m) I.empty pairs'
-           ; return $ shrink m }
+        makeUpd (EW.emptyMap equiv) $ filter hasUpdated
+                    $ zip (Foldable.toList xview) (Foldable.toList view)
     else
-        throwError $ strMsg  "Shape Mismatch!"
+        throwError $ strMsg "Shape Mismatch!"
     where
-      initMap  = I.fromList $ 
-                   concatMap (\(Loc x y) -> 
-                                  case y of 
-                                    InTrans -> []
-                                    InSource i -> [(i,x)]) (Foldable.toList xview)
-      shrink m = I.differenceWith (\a b -> if a == b then Nothing else Just a) m initMap 
-
-      d (x,y) = case location x of 
-                  InSource i -> return [(i,y)]
-                  InTrans ->
-                      if body x == y then 
-                          return []
-                      else 
-                          throwError errMsgConstant 
-
+      hasUpdated (Loc x _, y) = not (x == y) 
+      makeUpd upd [] = return upd 
+      makeUpd upd ((Loc _ InTrans,y):ps) = throwError errMsgConstant 
+      makeUpd upd ((Loc _ (InSource i), y):ps) =
+          case EM.lookup i upd of 
+            (Just z, upd') -> 
+                if z == y then 
+                    makeUpd upd' ps 
+                else
+                    throwError errMsgInconsistent 
+            (Nothing, upd') -> 
+                makeUpd (EM.insert i y upd) ps 
       isShapeEqual :: (Functor f, Eq (f ())) => f a -> f b -> Bool 
       isShapeEqual x y =  fmap (const ()) x == fmap (const ()) y 
+          
+          
+
+
+-- matchViews :: (Eq a,Functor f,Foldable f, Eq (f ()), MonadError e m, Error e)
+--               => f (Loc a) -> f a -> m (Update a)
+-- matchViews xview view =
+--     if isShapeEqual xview view then 
+--         do { let pairs = zip (Foldable.toList xview) (Foldable.toList view)
+--            ; pairs' <- mapM d pairs >>= (return . concat)
+--            ; m <- 
+--                foldM (\m (i,y) -> 
+--                        case I.lookup i m of 
+--                          Just z | z /= y -> 
+--                              throwError errMsgInconsistent 
+--                          Just _ -> 
+--                              return m 
+--                          Nothing -> 
+--                              return $ I.insert i y m) I.empty pairs'
+--            ; return $ shrink m }
+--     else
+--         throwError $ strMsg  "Shape Mismatch!"
+--     where
+--       initMap  = I.fromList $ 
+--                    concatMap (\(Loc x y) -> 
+--                                   case y of 
+--                                     InTrans -> []
+--                                     InSource i -> [(i,x)]) (Foldable.toList xview)
+--       shrink m = I.differenceWith (\a b -> if a == b then Nothing else Just a) m initMap 
+
+--       d (x,y) = case location x of 
+--                   InSource i -> return [(i,y)]
+--                   InTrans ->
+--                       if body x == y then 
+--                           return []
+--                       else 
+--                           throwError errMsgConstant 
+
+--       isShapeEqual :: (Functor f, Eq (f ())) => f a -> f b -> Bool 
+--       isShapeEqual x y =  fmap (const ()) x == fmap (const ()) y 
 
 
 
-expandUpdate :: (MonadError e m, Error e, Eq a ) 
-                => Update a -> UF.UnionFindTree Location -> m (Update a)
-expandUpdate upd t =
-    evalStateT newUpd t 
-    where
---      eq :: Monad m => Location -> Location -> StateT (UF.UnionFindTree Location) m Bool
-      eq x y = do { t <- get 
-                  ; let (b,t') = UF.equals x y t 
-                  ; put t'
-                  ; return b }
-      cls x = do { t <- get 
-                 ; return $ UF.equivalenceClass x t }
-      newUpd = initUpd >>= 
-               foldM (\upd (i,x) -> 
-                          case I.lookup i upd of 
-                            Just y -> 
-                                if x == y then 
-                                    return upd 
-                                else 
-                                    throwError errMsgInconsistent 
-                            Nothing -> 
-                                return $ I.insert i x upd) I.empty 
-      initUpd = 
-          mapM (\(i,v) -> 
-                    do { b <- eq (InSource i) InTrans
-                       ; if b then 
-                             throwError errMsgConstant 
-                         else
-                             do { cs <- cls (InSource i)
-                                ; return [ (j,v) | InSource j <- cs ] }}) (I.toList upd)
-          >>= (return . concat) 
+-- expandUpdate :: (MonadError e m, Error e, Eq a ) 
+--                 => Update a -> UF.UnionFindTree Int -> m (Update a)
+-- expandUpdate upd t =
+--     evalStateT newUpd t 
+--     where
+--       cls x = do { t <- get 
+--                  ; let (cs, t') = UF.equivalenceClass x t 
+--                  ; return cs }
+--       newUpd = initUpd >>= 
+--                foldM (\upd (i,x) -> 
+--                           case I.lookup i upd of 
+--                             Just y -> 
+--                                 if x == y then 
+--                                     return upd 
+--                                 else 
+--                                     throwError errMsgInconsistent 
+--                             Nothing -> 
+--                                 return $ I.insert i x upd) I.empty 
+--       initUpd =
+--           mapM (\(i,v) -> 
+--               do { cs <- cls i 
+--                  ; return [ (j,v) | j <- cs ] }) (I.toList upd)
+--           >>= (return . concat) 
 
 
 ------------------------------------------------------
@@ -187,35 +232,77 @@ instance PackM a (Identity a) Identity where
 instance Pack a (Loc a) where 
     new a = Loc a InTrans 
 
-type W a = WriterT (History (CheckResult (Loc a))) 
-                   (State (UF.UnionFindTree Location))
+-- type W a = WriterT (History (CheckResult (Loc a))) 
+--                    (State (UF.UnionFindTree Int))
 
 
-unW :: W a b -> (b, History (CheckResult (Loc a)), UF.UnionFindTree Location)
-unW m = 
-    let ((x,h),t) = runState (runWriterT m) UF.empty 
-    in  (x,h,t) 
+type B a = State ([CheckResult (Loc a)], EquivWitness Int)
+
+-- unW :: W a b -> (b, History (CheckResult (Loc a)), UF.UnionFindTree Int)
+-- unW m = 
+--     let ((x,h),t) = runState (runWriterT m) UF.empty 
+--     in  (x,h,t) 
+
+unB :: B a b -> (b, [CheckResult (Loc a)], EquivWitness Int)
+unB m =
+    let (x,(h,t)) = runState m ([], EW.empty)
+    in (x,h,t)
 
 -- | used internally 
-instance PackM a (Loc a) (W a) where 
-    liftO obs xs = do { tell $ return $ CheckResult obs' xs (obs' xs)
+instance PackM a (Loc a) (B a) where 
+    liftO obs xs = do { modify (\(h,t) -> (CheckResult obs' xs (obs' xs):h,t))
                       ; return $ obs' xs }
-        where obs' xs = obs (map body xs)
+        where
+          obs' xs = obs (map body xs)
 
-    eqSync x y = if body x == body y then 
-                     do { t <- get 
-                        ; put $ UF.equate (location x) (location y) t     
-                        ; return True }
-                 else
-                     do { _ <- liftO2 (==) x y 
-                        ; return False }
-    compareSync x y = do { c <- liftO2 compare x y 
-                         ; case c of 
-                             EQ -> do { t <- get
-                                      ; put $ UF.equate (location x) (location y) t 
-                                      ; return EQ }
-                             GT -> return GT 
-                             LT -> return LT }
+    eqSync x y 
+        | body x == body y, InSource i <- location x, InSource j <- location y = 
+              do { modify (\(h,t) -> (h, EW.equate i j t))
+                 ; return True }
+        | otherwise = liftO2 (==) x y 
+
+    compareSync x y 
+        |  EQ <- compare x y, InSource i <- location x, InSource j <- location y =
+              do { modify (\(h,t) -> (h, EW.equate i j t))
+                 ; return EQ }
+        | otherwise = liftO2 compare x y 
+          
+
+-- -- | used internally 
+-- instance PackM a (Loc a) (W a) where 
+--     liftO obs xs = do { tell $ return $ CheckResult obs' xs (obs' xs)
+--                       ; return $ obs' xs }
+--         where obs' xs = obs (map body xs)
+
+--     -- eqSync x y = if body x == body y then 
+--     --                  do { t <- get 
+--     --                     ; put $ UF.equate (location x) (location y) t     
+--     --                     ; return True }
+--     --              else
+--     --                  do { _ <- liftO2 (==) x y 
+--     --                     ; return False }
+--     eqSync x y 
+--         | body x == body y, InSource i <- location x, InSource j <- location y = 
+--             do { t <- get 
+--                ; put $ UF.equate i j t 
+--                ; return True }
+--         | otherwise = liftO2 (==) x y 
+
+--     compareSync x y 
+--         | EQ <- compare x y, InSource i <- location x, InSource j <- location y =
+--              do { t <- get
+--                 ; put $ UF.equate i j t
+--                 ; return EQ }
+--         | otherwise =
+--             liftO2 compare x y 
+            
+--     -- compareSync x y = do { c <- liftO2 compare x y 
+--     --                      ; case c of 
+--     --                          EQ -> do { t <- get
+--     --                                   ; put $ UF.equate (location x) (location y) t 
+--     --                                   ; return EQ }
+--     --                          GT -> return GT 
+--     --                          LT -> return LT }
                                  
                           
                           
@@ -228,22 +315,23 @@ bwd :: (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
         MonadError e n, Error e) =>
        (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
            sf c -> vf c -> n (sf c)
-bwd pget =
-    \src view ->
-        do { let xsrc = assignIDs src 
-           ; let (xview, hist, uft) = unW' (pget xsrc)
-           ; upd  <- matchViews xview view 
-           ; upd' <- expandUpdate upd uft 
-           ; if checkHistory (update upd') hist then 
-                 return $ fmap (body . update upd') xsrc 
+bwd pget src =
+    \view ->
+        do { upd <- matchViews xview view equiv 
+           ; let (b,upd') = runState (checkHistory update hist) upd 
+           ; if b then 
+                 let u x = evalState (update x) upd' 
+                 in return $ fmap (body . u) xsrc 
              else
                  throwError $ strMsg "Violated Invariants"}
     where
+      xsrc = assignIDs src 
+      (xview, hist, equiv) = unB' (pget xsrc) 
       -- for type inference 
-      unW' = unW :: W c (sf (Loc c))
+      unB' = unB :: B c (sf (Loc c))
                     -> (sf (Loc c), 
-                        History (CheckResult (Loc c)), 
-                        UF.UnionFindTree Location) 
+                        [CheckResult (Loc c)], 
+                        EquivWitness Int) 
 
 
 -- | Construction of a forward transformation (or, \"get\") from a

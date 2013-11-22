@@ -100,23 +100,23 @@ countWordsB ws ct =
 
 srcWords = 
     words $
-    unlines ["Old MacDonald had a farm, E-I-E-I-O."
-            , "And on that farm he had a cow, E-I-E-I-O."
+    unlines ["Old MacDonald had a farm E-I-E-I-O"
+            , "And on that farm he had a cow E-I-E-I-O"
             , "With a moo moo here and a moo moo there"
-            , "Here a moo, there a moo, everywhere a moo moo"
-            , "Old MacDonald had a farm, E-I-E-I-O."]
+            , "Here a moo" ++" "++ "there a moo" ++" "++  "everywhere a moo moo"
+            , "Old MacDonald had a farm E-I-E-I-O"]
 
 {-
 *Main> countWordsF srcWords 
-[("And",1),("E-I-E-I-O.",3),("Here",1),("MacDonald",2),("Old",2),("With",1),("a",8),("and",1),("cow,",1),("everywhere",1),("farm",1),("farm,",2),("had",3),("he",1),("here",1),("moo",6),("moo,",2),("on",1),("that",1),("there",2)]
+[("And",1),("E-I-E-I-O",3),("Here",1),("MacDonald",2),("Old",2),("With",1),("a",8),("and",1),("cow",1),("everywhere",1),("farm",3),("had",3),("he",1),("here",1),("moo",8),("on",1),("that",1),("there",2)]
 -}
 
 updWordCount = 
-    [("And",1),("E-I-E-I-O.",3),("Here",1),("McDonald",2),("Old",2),("With",1),("a",8),("and",1),("cow,",1),("everywhere",1),("farm",1),("farm,",2),("had",3),("he",1),("here",1),("moo",6),("moo,",2),("on",1),("that",1),("there",2)]
+    [("And",1),("E-I-E-I-O",3),("Here",1),("McDonald",2),("Old",2),("With",1),("a",8),("and",1),("cow",1),("everywhere",1),("farm",3),("had",3),("he",1),("here",1),("moo",8),("on",1),("that",1),("there",2)]
 
 {-
 *Main> countWordsB srcWords updWordCount 
-["Old","McDonald","had","a","farm,","E-I-E-I-O.","And","on","that","farm","he","had","a","cow,","E-I-E-I-O.","With","a","moo","moo","here","and","a","moo","moo","there","Here","a","moo,","there","a","moo,","everywhere","a","moo","moo","Old","McDonald","had","a","farm,","E-I-E-I-O."]
+["Old","McDonald","had","a","farm","E-I-E-I-O","And","on","that","farm","he","had","a","cow","E-I-E-I-O","With","a","moo","moo","here","and","a","moo","moo","there","Here","a","moo","there","a","moo","everywhere","a","moo","moo","Old","McDonald","had","a","farm","E-I-E-I-O"]
 -}
 
 {-
@@ -148,15 +148,16 @@ countWords'B ws ct =
 
 {-
 *Main> countWords'F srcWords 
-[("Old",2),("MacDonald",2),("had",3),("a",8),("farm,",2),("E-I-E-I-O.",3),("And",1),("on",1),("that",1),("farm",1),("he",1),("cow,",1),("With",1),("moo",6),("here",1),("and",1),("there",2),("Here",1),("moo,",2),("everywhere",1)]
+[("Old",2),("MacDonald",2),("had",3),("a",8),("farm",3),("E-I-E-I-O",3),("And",1),("on",1),("that",1),("he",1),("cow",1),("With",1),("moo",8),("here",1),("and",1),("there",2),("Here",1),("everywhere",1)]
 -} 
 
 updWordCount' = 
-    [("Old",2),("MacDonald",2),("had",3),("a",8),("farm,",2),("E-I-E-I-O.",3),("And",1),("on",1),("that",1),("farm",1),("he",1),("lamb,",1),("With",1),("bar",6),("here",1),("and",1),("there",2),("Here",1),("bar,",2),("everywhere",1)]
+    [("Old",2),("MacDonald",2),("had",3),("a",8),("farm",3),("E-I-E-I-O",3),("And",1),("on",1),("that",1),("he",1),("lamb",1),("With",1),("bar",8),("here",1),("and",1),("there",2),("Here",1),("everywhere",1)]
+
 
 {-
 *Main> unwords <$> countWords'B srcWords updWordCount'
-"Old MacDonald had a farm, E-I-E-I-O. And on that farm he had a lamb, E-I-E-I-O. With a bar bar here and a bar bar there Here a bar, there a bar, everywhere a bar bar Old MacDonald had a farm, E-I-E-I-O."
+"Old MacDonald had a farm E-I-E-I-O And on that farm he had a lamb E-I-E-I-O With a bar bar here and a bar bar there Here a bar there a bar everywhere a bar bar Old MacDonald had a farm E-I-E-I-O"
 -} 
 
 

@@ -5,11 +5,11 @@
 import Language.CheapB18n 
 import Language.CheapB18n.Utility 
 
-import qualified Language.CheapB18n.EquivalenceClass as UF 
-
 import Data.Traversable (Traversable)
 import Data.Functor 
 import Data.Foldable (Foldable) 
+
+import Data.List 
 
 import Control.Monad 
 
@@ -59,19 +59,28 @@ rename x y (Graph es) =
                             (return (s,e,d))) es 
 
 contract x (Graph es) = 
-    do { conts <- concat <$> 
+    do { nodes <- nub <$> concat <$> 
+                  mapM (\(s,e,d) -> return [s,d]) es 
+       ; conts <- concat <$> 
                   mapM (\(s,e,d) -> 
                             ifM (liftO2 (==) e (new x))
                                 (return [(s,d)])
                                 (return [])) es 
-       ; let uft = foldr (\(a,b) t -> UF.equate a b t) UF.empty conts 
-       ; let repr x = minimum [ x' | x' <- UF.equivalenceClass x uft ]
+--       ; let uft = foldr (\(a,b) t -> UF.equate a b t) UF.empty conts 
+       ; let rstCls = mkSymTransClosure conts nodes 
+       ; let repr x = minimum [ y | (x',y) <- rstCls, x == x' ]
        ; es' <- concat <$> 
                 mapM (\(s,e,d) -> 
                           ifM (liftO2 (==) e (new x))
                               (return [])
                               (return [(repr s, e, repr d)])) es
        ; return $ Graph es' }
+           where
+             mkSymTransClosure rs ns = mkTransClosure $ nub $ rs ++ [ (y,x) | (x,y) <- rs ] ++ [ (x,x) | x <- ns ]
+             mkTransClosure rs = 
+                 let rs' = nub $ rs ++ [ (x,z) | (x,y) <- rs, (y',z) <- rs, y == y' ]
+                 in if rs == rs' then rs else mkTransClosure rs'
+             
 
 viewGraph = 
     Graph [ (0,"members",1), (1,"member",2), (1,"member",8)
