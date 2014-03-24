@@ -1,5 +1,5 @@
-cheap-b18n 
-==========
+bff-mono
+========
 
 This package is an implementation of a paper: 
 
@@ -7,28 +7,32 @@ This package is an implementation of a paper:
       Bidirectionalization for Free with Runtime Recording: 
       Or, a Light-Weight Approach to the View Update Problem
 
-The package provides a type class `PackM`. Suppose one defines a
-transformation `h` of type
+The package provides an automatic way to construct a pair of functions
+that constitutes a so-called lens more precisely, a bidirectional
+transformation (NB: as parsers and parser-combinators differ,
+bidirectional transformations and lenses differ).
+
+For the purpose, the package provides a type class `PackM`. Suppose
+one defines a transformation `h` of type
      
     h :: forall a m. PackM c a m => [a] -> m [a] 
 
-for some c. Then, we can derive a bidirectional transformation from
-it by using `fwd` and `bwd` as
+for some concrete type c. Then, we can derive a bidirectional
+transformation from it by using `fwd` and `bwd` as
 
-    fwd h :: [c] -> [c]   
-    bwd h :: (MonadError e n, Error e) => [c] -> [c] -> n [c] 
+    fwd h :: [c] -> [c]  -- called get or getter 
+    bwd h :: (MonadError e n, Error e) => [c] -> [c] -> n [c] -- called put or setter 
 
-Here, we used lists, `fwd` and `bwd` can be applicable to the contains 
-that are `Traversable`.
+Here, we used lists as an example. However, `fwd` and `bwd` can be
+applicable to any lawful `Traversable`s.
 
-The package is an extension of the [bff
-package](http://hackage.haskell.org/package/bff) proposed by Janis
-Voigtänder.  Unlike the original work, our framework can handles
-transformations that constructs elements and compares something with
-newly-constructed elements. `Examples.hs` includes some XML
-transformations that are implemented as functions of type `forall a
-m. PackM L a m => Tree a -> m (Tree a)` where `L` is a label type for
-XML.
+The package can be seen as an extension of the [bff
+package](http://hackage.haskell.org/package/bff). Unlike the original
+work, our framework can handles transformations that constructs
+elements and compares something with newly-constructed
+elements. `Examples.hs` includes some XML transformations that are
+implemented as functions of type `forall a m. PackM L a m => Tree a ->
+m (Tree a)` where `L` is a label type for XML.
 
   
 How to Build
@@ -163,4 +167,8 @@ Then, we can propagate the change by using `bwd`, as follows.
         </book>
     </bib>
 
- 
+In `Example.hs`, you can see that it is not so burden to write `q1`
+with the required type. 
+
+
+

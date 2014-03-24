@@ -1,4 +1,4 @@
-name:                cheap-b18n
+name:                bff-mono
 version:             0.1.0.0
 synopsis:            An EDSL for bidirectional transformation.
 description:         This package provides a class 'PackM'.
