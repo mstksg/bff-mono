@@ -1,6 +1,6 @@
 {-# LANGUAGE Rank2Types, ExistentialQuantification #-}
 
-module Language.CheapB18n.CheckHistory where 
+module Data.BffMono.CheckHistory where 
 
 import Data.Monoid 
 import Control.Monad

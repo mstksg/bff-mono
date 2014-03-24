@@ -2,7 +2,7 @@
   The module provides counterparts of @..By@ functions in "Data.List"
   for monadic observations. 
 -}
-module Language.CheapB18n.Utility 
+module Data.BffMono.Utility 
     ( 
      ifM, nubByM, deleteByM, deleteFirstByM, unionByM, 
      intersectByM, elemByM, groupByM, 

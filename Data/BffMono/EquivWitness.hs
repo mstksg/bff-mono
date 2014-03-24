@@ -2,7 +2,7 @@
 {-| 
   A restricted version of @EquivMap@, which just records equivalence. 
  -} 
-module Language.CheapB18n.EquivWitness 
+module Data.BffMono.EquivWitness 
      (
        EquivWitness
      , equals, equate, empty
@@ -10,7 +10,7 @@ module Language.CheapB18n.EquivWitness
      )
     where 
 
-import qualified Language.CheapB18n.EquivMap as EM 
+import qualified Data.BffMono.EquivMap as EM 
 
 
 newtype EquivWitness k = EquivWitness (forall a. EM.EquivMap k a)

@@ -1,14 +1,13 @@
 name:                bff-mono
 version:             0.1.0.0
-synopsis:            An EDSL for bidirectional transformation.
-description:         This package provides a class 'PackM'.
-                     A function defined with the polymorphic type
-                     @
-                      forall a m.PackM c a m => f a -> m (t a) 
-                     @
-                     for 'f' and 't' of
-                     'Traversable' instances can be bidirectionalized by 
-                     'fwd' and 'bwd'. 
+synopsis:            "Bidirectionalization for Free" for Monomorphic Transformations
+description:         This package provides a way to make a bidirectional 
+                     transformation (a getter/setter pair) 
+                     from a unidirectional 
+                     one. Like `bff` package, this constructs a bidirectional 
+                     transformation based on free-theorem. Unlike `bff` package,
+                     the package supports some of monomorphic transformations. 
+                     
                      
 license:             BSD3
 license-file:        LICENSE
@@ -20,12 +19,13 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:     Language.CheapB18n
-                       Language.CheapB18n.Ex 
-                       Language.CheapB18n.Utility
+  exposed-modules:     Data.BffMono
+                       Data.BffMono.Utility
 
-  other-modules:       Language.CheapB18n.Base 
-                       Language.CheapB18n.CheckHistory 
+  other-modules:       Data.BffMono.Base 
+                       Data.BffMono.CheckHistory 
+                       Data.BffMono.EquivMap 
+                       Data.BffMono.EquivWitness 
                        
   build-depends:       base >= 4 && < 5, mtl, containers
 

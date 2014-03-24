@@ -9,8 +9,9 @@ This package is an implementation of a paper:
 
 The package provides an automatic way to construct a pair of functions
 that constitutes a so-called lens, more precisely, a bidirectional
-transformation (NB: as parsers and parser-combinators differ,
-bidirectional transformations and lenses differ).
+transformation, from a uni-directional transformation (NB: as parsers
+and parser-combinators differ, bidirectional transformations and
+lenses differ).
 
 For the purpose, the package provides a type class `PackM`. Suppose
 one defines a transformation `h` of type
@@ -54,9 +55,9 @@ Example
 We demonstrate our library by using an XML transformation 
 taken from [XML Query Use Cases](http://www.w3.org/TR/xquery-use-cases/).
 
-To demonstrate our library, we firstly load `Example.hs`.
+To demonstrate our library, we firstly load `XMLExamples.hs`.
 
-    $ ghci Example.hs 
+    $ ghci XMLExamples.hs 
     ...
     *Main> 
 
@@ -99,7 +100,7 @@ Let us consider an XML data `test_src`.
     </bib>
   
 Query Q1 in XMP Use Case extracts books with titles that are published
-after 1991. `Example.hs` contains a version of the query in the intended type.
+after 1991. `XMLExamples.hs` contains a version of the query in the intended type.
 
     *Main> :t q1 
     q1 :: PackM L a m => Tree a -> m (Tree a)
@@ -167,7 +168,7 @@ Then, we can propagate the change by using `bwd`, as follows.
         </book>
     </bib>
 
-In `Example.hs`, you can see that it is not so burden to write `q1`
+In `XMLExamples.hs`, you can see that it is not so burden to write `q1`
 with the required type. 
 
 

@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, 
              FlexibleContexts #-}
 
-import Language.CheapB18n 
-import Language.CheapB18n.Utility 
+import Data.BffMono 
+import Data.BffMono.Utility 
 
 import Data.Traversable (Traversable)
 import Data.Functor 

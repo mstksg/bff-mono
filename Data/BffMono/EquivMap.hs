@@ -5,7 +5,7 @@ An implementation of maps based on Union-Find.
 -}
 {-# LANGUAGE FlexibleContexts  #-}
 
-module Language.CheapB18n.EquivMap 
+module Data.BffMono.EquivMap 
     (
      EquivMap
     , equals, equalsM

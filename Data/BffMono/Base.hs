@@ -7,7 +7,7 @@
   #-}
 
 
-module Language.CheapB18n.Base where 
+module Data.BffMono.Base where 
 
 import Data.Traversable hiding (mapM)
 import qualified Data.Traversable as T (mapM)
@@ -16,14 +16,12 @@ import qualified Data.Foldable as Foldable
 
 import Data.Function (on) 
 
-import Language.CheapB18n.CheckHistory 
--- import qualified Language.CheapB18n.EquivalenceClass as UF 
+import Data.BffMono.CheckHistory 
 
-
-import Language.CheapB18n.EquivMap (EquivMap) 
-import qualified Language.CheapB18n.EquivMap as EM 
-import Language.CheapB18n.EquivWitness (EquivWitness)
-import qualified Language.CheapB18n.EquivWitness as EW
+import Data.BffMono.EquivMap (EquivMap) 
+import qualified Data.BffMono.EquivMap as EM 
+import Data.BffMono.EquivWitness (EquivWitness)
+import qualified Data.BffMono.EquivWitness as EW
 
 -- from containers 
 import Data.IntMap (IntMap)
