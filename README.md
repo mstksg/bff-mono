@@ -8,7 +8,7 @@ This package is an implementation of a paper:
       Or, a Light-Weight Approach to the View Update Problem
 
 The package provides an automatic way to construct a pair of functions
-that constitutes a so-called lens more precisely, a bidirectional
+that constitutes a so-called lens, more precisely, a bidirectional
 transformation (NB: as parsers and parser-combinators differ,
 bidirectional transformations and lenses differ).
 

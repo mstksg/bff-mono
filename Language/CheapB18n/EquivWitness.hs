@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts, Rank2Types  #-}
-
+{-| 
+  A restricted version of @EquivMap@, which just records equivalence. 
+ -} 
 module Language.CheapB18n.EquivWitness 
      (
        EquivWitness

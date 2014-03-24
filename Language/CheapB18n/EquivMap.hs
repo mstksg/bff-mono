@@ -1,7 +1,6 @@
 {-|
 
-A implementation of a map whose keys may have quotient, based on 
-Union-Find tree. 
+An implementation of maps based on Union-Find. 
 
 -}
 {-# LANGUAGE FlexibleContexts  #-}
@@ -41,14 +40,18 @@ data EquivMap k a =
        -- ^ body of union-find tree (negative value means -rank) 
       valueMap :: (IntMap a) 
        -- ^ mapping to values (only correct for a root) 
+
     }
 
+-- | Checks that two keys are in the same set or not. 
+--   The resulting EquivMap is tuned for later queries. 
 equals :: Ord k => k -> k -> EquivMap k a -> (Bool, EquivMap k a) 
 equals x1 x2 t = 
     let (r1,t1) = find x1 t 
         (r2,t2) = find x2 t1 
     in (r1 == r2, t2) 
 
+-- | Monadic-version of @equals@
 equalsM :: (MonadState (EquivMap k a) m, Ord k) => k -> k -> m Bool 
 equalsM x1 x2 =
     do { t <- get 
@@ -56,8 +59,10 @@ equalsM x1 x2 =
        ; put t' 
        ; return r }
 
+-- | Empty map 
 empty = EquivMap M.empty IM.empty IM.empty 
 
+-- | "find" of "Union-Find" 
 find :: Ord k => k -> EquivMap k a -> (Int, EquivMap k a) 
 find k equivMap =
     case M.lookup k (elemMap equivMap) of 
@@ -79,7 +84,12 @@ find k equivMap =
                  let (root,t') = findAux p t 
                  in (root, IM.insert i root t')
 
-
+-- | Unify the set of the given two keys. This operation corresponds to 
+--   "Union" of "Union-Find". 
+--
+--   FIXME: The function does not touch the values associated with the keys 
+--          This does not affect the correctness of our bidirectionalization, 
+--          which does not call @equate@ after @insert@ and @lookup@. 
 equate :: Ord k => k -> k -> EquivMap k a -> EquivMap k a 
 equate a1 a2 equivMap =
     let (root1, equivMap1) = find a1 equivMap
@@ -99,24 +109,28 @@ equate a1 a2 equivMap =
               t'' = IM.insert r2 r1 t'
           in em { tree = t'' } 
 
+-- | Monadic version of @equte@
 equateM :: (MonadState (EquivMap k a) m, Ord k) => k -> k -> m ()
 equateM a1 a2 = modify (equate a1 a2) 
        
 
+-- | Associates a value to the set that contains the given key 
 insert :: Ord k => k -> a -> EquivMap k a -> EquivMap k a 
 insert k v equivMap =
     let (i, equivMap') = find k equivMap 
     in equivMap' { valueMap = IM.insert i v (valueMap equivMap') }
 
+-- | A monadic version of @insert@ 
 insertM :: (MonadState (EquivMap k a) m, Ord k) => k -> a -> m ()
 insertM k v = modify (insert k v) 
     
-
+-- | Loops-up values associated with the set of the given key 
 lookup :: Ord k => k -> EquivMap k a -> (Maybe a, EquivMap k a) 
 lookup k equivMap =
     let (i, equivMap') = find k equivMap 
     in (IM.lookup i (valueMap equivMap'), equivMap')
 
+-- | A monadic version of @lookup@
 lookupM :: (MonadState (EquivMap k a) m, Ord k) => k -> m (Maybe a)
 lookupM k =
     do { t <- get 
