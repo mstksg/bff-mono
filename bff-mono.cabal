@@ -1,5 +1,5 @@
 name:                bff-mono
-version:             0.2.0
+version:             0.2.1
 synopsis:            "Bidirectionalization for Free" for Monomorphic Transformations
 description:         This package provides a way to make a bidirectional 
                      transformation (a getter/setter pair, or so-called lens) 
