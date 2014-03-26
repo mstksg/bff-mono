@@ -1,11 +1,12 @@
 name:                bff-mono
-version:             0.2.0
+version:             0.2.1
 synopsis:            "Bidirectionalization for Free" for Monomorphic Transformations
 description:         This package provides a way to make a bidirectional 
-                     transformation (a getter/setter pair) 
-                     from a unidirectional 
-                     one. Like `bff` package, this constructs a bidirectional 
-                     transformation based on free-theorem. Unlike `bff` package,
+                     transformation (a getter/setter pair, or so-called lens) 
+                     from a description of unidirectional transformation. 
+                     Like 'bff' package, the package constructs bidirectional 
+                     transformations based on the free theorem. 
+                     Unlike 'bff' package,
                      the package supports some of monomorphic transformations. 
                      
                      
