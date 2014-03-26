@@ -15,7 +15,7 @@ license-file:        LICENSE
 author:              Kazutaka Matsuda, 
                      Meng Wang
 maintainer:          kztk@is.s.u-tokyo.ac.jp
-category:            Language
+category:            Data, Lenses
 build-type:          Simple
 cabal-version:       >=1.8
 
