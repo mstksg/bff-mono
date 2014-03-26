@@ -21,7 +21,7 @@ traceM :: Monad m => m String -> m a -> m a
 traceM m y = do { x <- m; trace x y }
 
 nubByM :: Monad m => (a -> a -> m Bool) -> [a] -> m [a]
-nubByM eq xs = f xs 
+nubByM eq = f 
     where
       f []     = return []
       f (x:xs) = do { r <- deleteByM eq x xs
@@ -29,14 +29,14 @@ nubByM eq xs = f xs
                     ; return $ x:y }
 
 deleteByM :: Monad m => (a -> a -> m Bool) -> a -> [a] -> m [a]
-deleteByM eq x [] = return []
+deleteByM _  _ []     = return []
 deleteByM eq x (y:ys) = 
     do { b <- eq x y 
        ; r <- deleteByM eq x ys 
        ; return (if b then r else y:r) }
 
 deleteFirstByM :: Monad m => (a -> a -> m Bool) -> a -> [a] -> m [a]
-deleteFirstByM eq x [] = return []
+deleteFirstByM _  _ []     = return []
 deleteFirstByM eq x (y:ys) = 
     do { b <- eq x y 
        ; if b then 
@@ -54,13 +54,13 @@ intersectByM :: Monad m => (a -> a -> m Bool) -> [a] -> [a] -> m [a]
 intersectByM eq xs ys = f xs
     where
       f [] = return []
-      f (x:xs) = do { b <- elemByM eq x ys
-                    ; r <- f xs 
-                    ; return (if b then x:r else r) }
+      f (z:zs) = do { b <- elemByM eq z ys
+                    ; r <- f zs 
+                    ; return (if b then z:r else r) }
       
     
 elemByM :: Monad m => (a -> a -> m Bool) -> a -> [a] -> m Bool 
-elemByM eq x [] = return False 
+elemByM _  _ []     = return False 
 elemByM eq x (y:ys) = 
     do { b <- eq x y 
        ; if b then 
@@ -69,7 +69,7 @@ elemByM eq x (y:ys) =
              elemByM eq x ys}
 
 groupByM :: Monad m => (a -> a -> m Bool) -> [a] -> m [[a]] 
-groupByM eq xs = g xs 
+groupByM eq = g 
     where
       g []     = return []
       g (x:xs) = f [x] xs 
@@ -83,7 +83,7 @@ groupByM eq xs = g xs
                       ; return $ reverse (y:ys):r }}
 
 sortByM :: Monad m => (a -> a -> m Ordering) -> [a] -> m [a]
-sortByM ord xs = ms (map (:[]) xs)
+sortByM ord zs = ms (map (:[]) zs)
     where
       ms []  = return []
       ms [r] = return r
@@ -102,12 +102,12 @@ sortByM ord xs = ms (map (:[]) xs)
       merge (x:xs) (y:ys) = 
           do { o <- ord x y 
              ; case o of 
-                 EQ -> liftM (x:) $ liftM (y:) $  merge xs ys 
+                 EQ -> liftM ((x:) . (y:)) $ merge xs ys 
                  LT -> liftM (x:) $ merge xs (y:ys)
                  GT -> liftM (y:) $ merge (x:xs) ys }
 
 insertByM :: Monad m => (a -> a -> m Ordering) -> a -> [a] -> m [a]
-insertByM ord a xs = f a xs 
+insertByM ord = f 
     where
       f a [] = return [a]
       f a (x:xs) =
@@ -117,7 +117,7 @@ insertByM ord a xs = f a xs
                  _  -> return (a:x:xs)}
 
 maximumByM :: Monad m => (a -> a -> m Ordering) -> [a] -> m a
-maximumByM ord xs = f xs 
+maximumByM ord = f 
     where 
       f []     = errorEmptyList "maximumByM"
       f (x:xs) = g x xs 
@@ -130,7 +130,7 @@ maximumByM ord xs = f xs
                  _  -> g a xs}
 
 minimumByM :: Monad m => (a -> a -> m Ordering) -> [a] -> m a
-minimumByM ord xs = f xs 
+minimumByM ord = f 
     where 
       f []     = errorEmptyList "minimumByM"
       f (x:xs) = g x xs 

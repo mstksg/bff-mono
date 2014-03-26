@@ -40,7 +40,7 @@ myNub2 :: (Eq c1, Eq c2, PackM c1 a1 m, PackM c2 a2 m) =>
           ([a1],[a2]) -> m ([a1],[a2])
 myNub2 (x,y) = do { x' <- myNub x
                   ; y' <- myNub y 
-                  ; return $ (x',y')}
+                  ; return (x',y')}
 
 myNub2F = runMyPair . fwd (fmap MyPair . myNub2 . runMyPair) . MyPair 
 
@@ -63,7 +63,7 @@ myNub2' :: (Eq c, PackM c a m) => ([a],[a]) -> m ([a],[a])
 myNub2' (x,y) = do { x' <- myNub x
                    ; y' <- myNub y 
                    ; _  <- myNub (x++y) 
-                   ; return $ (x',y')}
+                   ; return (x',y')}
 
 myNub2'F = runMyPair . fwd (fmap MyPair . myNub2' . runMyPair) . MyPair 
 

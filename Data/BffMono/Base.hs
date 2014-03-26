@@ -10,11 +10,9 @@
 module Data.BffMono.Base where 
 
 import Data.Traversable hiding (mapM)
-import qualified Data.Traversable as T (mapM)
+
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Foldable 
-
-import Data.Function (on) 
 
 import Data.BffMono.CheckHistory 
 
@@ -22,10 +20,6 @@ import Data.BffMono.EquivMap (EquivMap)
 import qualified Data.BffMono.EquivMap as EM 
 import Data.BffMono.EquivWitness (EquivWitness)
 import qualified Data.BffMono.EquivWitness as EW
-
--- from containers 
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as I
 
 -- from mtl 
 import Control.Monad.Error 
@@ -40,25 +34,25 @@ class Pack conc abs | abs -> conc where
 class (Pack conc abs, Monad m, Functor m) => 
        PackM conc abs m where
     liftO :: Eq r => ([conc] -> r) -> ([abs] -> m r)
-    -- ^ lifting @conc@-level observations to @abs@ level, with 
+    -- ^ Lifts @conc@-level observations to @abs@ level, with 
     --   recording the examined values and the observed result. 
 
     eqSync :: Eq conc => abs -> abs -> m Bool 
-    -- ^ lifting @conc@-level equivalence with synchronization 
+    -- ^ Lifts @conc@-level equivalence with synchronization 
 
     compareSync :: Ord conc => abs -> abs -> m Ordering 
-    -- ^ lifting @conc@-level ordering.
+    -- ^ Lifts @conc@-level ordering.
     --   It synchronizes the elements if the comparison result is EQ 
 
 -- | A special version of 'liftO' for unary observations.
 liftO1 :: (PackM conc abs m, Eq r) => (conc -> r) -> abs -> m r 
-liftO1 f x = liftO (\[x] -> f x) [x]
+liftO1 f x = liftO (\[a] -> f a) [x]
 
 
 -- | A special version of 'liftO' for binary observations.
 liftO2 :: (PackM conc abs m, Eq r) 
           => (conc -> conc -> r) -> abs -> abs -> m r 
-liftO2 f x y = liftO (\[x,y] -> f x y) [x,y]
+liftO2 f x y = liftO (\[a,b] -> f a b) [x,y]
 
 
 -- | Abstract pointer.
@@ -118,7 +112,7 @@ matchViews xview view equiv =
     else
         throwError $ strMsg "Shape Mismatch!"
     where
-      hasUpdated (Loc x _, y) = not (x == y) 
+      hasUpdated (Loc x _, y) = x /= y 
       makeUpd upd [] = return upd 
       makeUpd upd ((Loc _ InTrans,y):ps) = throwError errMsgConstant 
       makeUpd upd ((Loc _ (InSource i), y):ps) =
@@ -131,7 +125,7 @@ matchViews xview view equiv =
             (Nothing, upd') -> 
                 makeUpd (EM.insert i y upd) ps 
       isShapeEqual :: (Functor f, Eq (f ())) => f a -> f b -> Bool 
-      isShapeEqual x y =  fmap (const ()) x == fmap (const ()) y 
+      isShapeEqual x y =  void x == void y 
           
           
 
@@ -140,7 +134,7 @@ matchViews xview view equiv =
 
 -- | used internally 
 instance Pack a (Identity a) where 
-    new a = Identity a 
+    new = Identity 
 
 -- | used internally 
 instance PackM a (Identity a) Identity where 
@@ -185,14 +179,13 @@ instance PackM a (Loc a) (B a) where
 
 ------------------------------------------------------
 
--- | Construction of a backward transformation (or, \"put\") from a
---   polymorphic function.
+-- | Constructs a backward transformation (or, \"put\" or
+--   \"setter\") from a given function.
 bwd :: (Eq (vf ()), Traversable vf, Traversable sf, Eq c,
         MonadError e n, Error e) =>
        (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
            sf c -> vf c -> n (sf c)
-bwd pget src =
-    \view ->
+bwd pget src view =
         do { upd <- matchViews xview view equiv 
            ; let (b,upd') = runState (checkHistory update hist) upd 
            ; if b then 
@@ -210,13 +203,12 @@ bwd pget src =
                         EquivWitness Int) 
 
 
--- | Construction of a forward transformation (or, \"get\") from a
---   polymorphic function. 
+-- | Constructs a forward transformation (or, \"get\" or \"getter\") from a
+--   given function. 
 fwd :: (Traversable vf, Traversable sf) =>
        (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
            sf c -> vf c
-fwd pget =
-    \src -> 
-        let Identity r = pget $ fmap Identity src 
-        in fmap runIdentity r
+fwd pget src =
+    let Identity r = pget $ fmap Identity src 
+    in fmap runIdentity r
 

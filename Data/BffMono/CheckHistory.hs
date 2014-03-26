@@ -2,16 +2,6 @@
 
 module Data.BffMono.CheckHistory where 
 
-import Data.Monoid 
-import Control.Monad
-
-import Data.Foldable (Foldable) 
-import qualified Data.Foldable as Foldable  
-
-
--- from mtl 
-import Control.Monad.Writer 
-
 
 -- | 'CheckResult' stores an observation result.  It consists of an
 --   observation function, a list observed elements and an observation

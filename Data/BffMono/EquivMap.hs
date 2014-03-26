@@ -23,33 +23,27 @@ import qualified Data.IntMap as IM
 import Data.Map (Map) 
 import qualified Data.Map as M 
 
-import Data.Monoid 
 import Data.Maybe (fromJust) 
-
-import qualified Data.Foldable 
-import Data.List (groupBy, sortBy)
-import Data.Function 
 
 import Control.Monad.State 
 
 data EquivMap k a =
     EquivMap {
-      elemMap :: (Map k Int),  
+      elemMap :: Map k Int,
        -- ^ mapping from keys to integers 
-      tree :: (IntMap Int),
+      tree :: IntMap Int,
        -- ^ body of union-find tree (negative value means -rank) 
-      valueMap :: (IntMap a) 
+      valueMap :: IntMap a
        -- ^ mapping to values (only correct for a root) 
-
     }
 
 -- | Checks that two keys are in the same set or not. 
 --   The resulting EquivMap is tuned for later queries. 
 equals :: Ord k => k -> k -> EquivMap k a -> (Bool, EquivMap k a) 
-equals x1 x2 t = 
+equals x1 x2 t =
     let (r1,t1) = find x1 t 
         (r2,t2) = find x2 t1 
-    in (r1 == r2, t2) 
+    in (r1 == r2, t2)
 
 -- | Monadic-version of @equals@
 equalsM :: (MonadState (EquivMap k a) m, Ord k) => k -> k -> m Bool 
@@ -60,6 +54,7 @@ equalsM x1 x2 =
        ; return r }
 
 -- | Empty map 
+empty :: EquivMap k a 
 empty = EquivMap M.empty IM.empty IM.empty 
 
 -- | "find" of "Union-Find" 
@@ -100,11 +95,11 @@ equate a1 a2 equivMap =
            equivMap2 
        else
            if rk1 < rk2 then 
-               insert root1 root2 rk1 rk2 (tree equivMap2) equivMap2
+               insertUF root1 root2 rk1 rk2 (tree equivMap2) equivMap2
            else
-               insert root2 root1 rk2 rk1 (tree equivMap2) equivMap2 
+               insertUF root2 root1 rk2 rk1 (tree equivMap2) equivMap2 
     where
-      insert r1 r2 rk1 rk2 t em =
+      insertUF r1 r2 rk1 rk2 t em =
           let t'  = IM.insert r1 (- (rk1 + rk2)) t
               t'' = IM.insert r2 r1 t'
           in em { tree = t'' } 
