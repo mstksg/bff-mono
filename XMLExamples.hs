@@ -203,9 +203,9 @@ q1 t = pick $
        do { bs <- gather $ (keep /> (ofLabel (new $ E "book") >=> h)) t
           ; return $ N (new $ E "bib") bs }
     where
-      h b = do { y  <- (keep /> ofLabel (new $ A "year") /> keep) b -- childrenWith (ofLabel (new $ A "year")) b >>= children 
-               ; t  <- (keep /> ofLabel (new $ E "title")) b -- childrenWith (ofLabel (new $ E "title")) b
-               ; p  <- (keep /> ofLabel (new $ E "publisher") /> keep) b -- childrenWith (ofLabel (new $ E "publisher")) b >>= children 
+      h b = do { y  <- (keep /> ofLabel (new $ A "year") /> keep) b
+               ; t  <- (keep /> ofLabel (new $ E "title")) b 
+               ; p  <- (keep /> ofLabel (new $ E "publisher") /> keep) b
                ; guardM $ lift $ liftO2 ((>) `on` g) (label y) (new $ T "1991")
                ; guardM $ lift $ liftO2 (==) (label p) (new $ T "Addison-Wesley")
                ; return $ N (new $ E "book") [N (new $ A "year") [y], t] } 
