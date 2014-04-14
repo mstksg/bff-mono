@@ -52,11 +52,13 @@ as other cabal packages, as:
 Example 
 -------
 
-We demonstrate our library by using an XML transformation 
+We demonstrate our library by using an XML transformation example
 taken from [XML Query Use Cases](http://www.w3.org/TR/xquery-use-cases/).
 
-To demonstrate our library, we firstly load `XMLExamples.hs`.
+To demonstrate our library, we firstly load `XMLExamples.hs` located
+at `Examples`.
 
+    $ cd Examples 
     $ ghci XMLExamples.hs 
     ...
     *Main> 
@@ -171,5 +173,6 @@ Then, we can propagate the change by using `bwd`, as follows.
 In `XMLExamples.hs`, you can see that it is not so burden to write `q1`
 with the required type. 
 
+You can find more examples in the `Examples` directory. 
 
 
