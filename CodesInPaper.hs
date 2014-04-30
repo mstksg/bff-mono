@@ -4,7 +4,7 @@
 
 import Data.List ((\\), nub)
 import Data.Traversable (Traversable, traverse) 
-import Control.Applicative (getConst, Const(..), Applicative)
+import Control.Applicative (getConst, Const(..))
 
 import Data.Foldable (Foldable) 
 
@@ -23,32 +23,41 @@ Section 2
 ---------
 -}
 
-data Loc' a = Loc' { body' :: a, location' :: Int}
+data LocOrg a = LocOrg { bodyOrg :: a, locationOrg :: Int}
 
 type Update a = [(Int,a)]
 
-update' :: [(Int,a)] -> Loc' a -> Loc' a 
-update' upd (Loc' x i) = maybe (Loc' x i) (\y -> Loc' y i) (lookup i upd) 
+updateOrg :: [(Int,a)] -> LocOrg a -> LocOrg a 
+updateOrg upd (LocOrg x i) = 
+    maybe (LocOrg x i) (\y -> LocOrg y i) (lookup i upd) 
 
-matchViewsSimple :: Eq a => [Loc' a] -> [a] -> Update a 
+matchViewsSimple :: Eq a => [LocOrg a] -> [a] -> Update a 
 matchViewsSimple vx v = 
     if length vx == length v then 
-        minimize' vx $ makeUpdSimple $ zip vx v 
+        minimizeOrg vx $ makeUpdSimple $ zip vx v 
     else
         error "Shape Mismatch" 
 
-makeUpdSimple :: Eq a => [(Loc' a,a)] -> Update a 
+makeUpdSimple :: Eq a => [(LocOrg a,a)] -> Update a 
 makeUpdSimple = foldr f []
     where
-      f (Loc' _ i,y) u =
+      f (LocOrg _ i,y) u =
           case lookup i u of 
             Nothing -> 
                 (i,y):u
             Just y' | y'==y     -> u
                     | otherwise -> error "Inconsistent Update"
 
-minimize' :: Eq a => [Loc' a] -> Update a -> Update a 
-minimize' vx u = u \\ [(i,x) | Loc' x i <- vx] 
+minimizeOrg :: Eq a => [LocOrg a] -> Update a -> Update a 
+minimizeOrg vx u = u \\ [(i,x) | LocOrg x i <- vx] 
+
+
+bwdOrg :: (forall a. [a] -> [a]) -> (forall c. Eq c => [c] -> [c] -> [c])
+bwdOrg h = \ s v -> 
+           let sx  = zipWith LocOrg s [1..]
+               vx  = h sx 
+               upd = matchViewsSimple vx v
+           in map (bodyOrg . updateOrg upd) sx
 
 {-
 ---------
@@ -91,7 +100,7 @@ linkssPoly (Node n ts) =
 -- Section 3.2 
 
 class (Pack c a, Monad m) => PackM c a m where
-    liftO :: Eq b => ([c] -> b) -> [a] -> m b 
+    liftO :: Eq b => ([c] -> b) -> ([a] -> m b)
     eqSync :: Eq c => a -> a -> m Bool -- Section 5.2 
              
 class Pack c a | a -> c where
@@ -133,12 +142,12 @@ instance PackM c (N c) I where
     liftO p x = I (p $ map runN x) 
     eqSync = liftO2 (==) -- Section 5.2 
 
-fwd :: (forall a. forall m. PackM c a m => Tree a -> m (Tree a))
-       -> Tree c -> Tree c 
-fwd h = \s -> let I v = h (fmap N s) in fmap runN v 
+fwdTree :: (forall a. forall m. PackM c a m => Tree a -> m (Tree a))
+           -> Tree c -> Tree c 
+fwdTree h = \s -> let I v = h (fmap N s) in fmap runN v 
 
 linksF :: Tree String -> Tree String 
-linksF = fwd links
+linksF = fwdTree links
 
 -- Section 3.4 
 
@@ -188,15 +197,16 @@ instance PackM c (Loc c) (W (Loc c)) where
 
     eqSync = liftO2 (==) -- We don't provide eqSync for this instance. 
 
-update :: Update c -> (Loc c) -> (Loc c) 
+update :: Update c -> Loc c -> Loc c
 update upd (Loc x Nothing) = Loc x Nothing 
 update upd (Loc x (Just i)) =
     maybe (Loc x (Just i)) (\y -> Loc y (Just i)) (lookup i upd) 
        
-bwd :: Eq c => 
+bwdTree :: Eq c => 
        (forall a. forall m. PackM c a m => Tree a -> m (Tree a)) 
            -> Tree c -> Tree c -> Tree c 
-bwd h = \s v -> 
+bwdTree h = 
+    \s v -> 
         let sx = assignLocs  s
             W (vx, hist) = h sx 
             upd          = matchViews vx v
@@ -207,7 +217,7 @@ bwd h = \s v ->
 
 
 linksB :: Tree String -> Tree String -> Tree String
-linksB = bwd links 
+linksB = bwdTree links 
 
 view' = Node "results" [Node "a" [Node "chagned" []], 
                         Node "a" [Node "text2" []]]
@@ -230,7 +240,7 @@ view'' = Node "results" [Node "b" [Node "text" []],
 ---------
 Section 4
 ---------
--}
+-} 
 
 
 
@@ -282,16 +292,16 @@ minimize :: Eq c => [Loc c] -> Update c -> Update c
 minimize vx u = u \\ [(i,x) | Loc x (Just i) <- vx] 
                              
 
-fwd' :: (Traversable k1, Traversable k2) => 
-        (forall a. forall m. PackM c a m => k1 a -> m (k2 a))
+fwd :: (Traversable k1, Traversable k2) => 
+       (forall a. forall m. PackM c a m => k1 a -> m (k2 a))
        -> k1 c -> k2 c 
-fwd' h = \s -> let I v = h (fmap N s) in fmap runN v 
+fwd h = \s -> let I v = h (fmap N s) in fmap runN v 
             
 
-bwd' :: (Traversable k1, Traversable k2, Eq (k2 ()), Eq c) => 
-        (forall a. forall m. PackM c a m => k1 a -> m (k2 a))
-        -> k1 c -> k2 c -> k1 c 
-bwd' h = \s v -> 
+bwd :: (Traversable k1, Traversable k2, Eq (k2 ()), Eq c) => 
+       (forall a. forall m. PackM c a m => k1 a -> m (k2 a))
+       -> k1 c -> k2 c -> k1 c 
+bwd h = \s v -> 
         let sx = assignLocs  s
             W (vx, hist) = h sx 
             upd          = matchViews vx v
@@ -344,8 +354,8 @@ bwdE h = \s v ->
                error "Inconsistent History" 
 
 
-updateE :: Equiv -> Update c -> (Loc c) -> (Loc c) 
-updateE _ upd (Loc x Nothing) = Loc x Nothing 
+updateE :: Equiv -> Update c -> Loc c -> Loc c 
+updateE equiv upd (Loc x Nothing) = Loc x Nothing 
 updateE equiv upd (Loc x (Just i)) =
     maybe (Loc x (Just i)) (\y -> Loc y (Just i)) (lookupBy (\i j -> equal i j equiv) i upd) 
 
@@ -426,7 +436,7 @@ newtype CountList a = CountList { runCountList :: [(a,Int)] }
     deriving (Functor, Foldable, Traversable, Eq) 
 
 countWordsF :: [String] -> [(String,Int)]
-countWordsF ws = runCountList $ fwd' (liftM CountList . countWordsM) ws 
+countWordsF ws = runCountList $ fwd (liftM CountList . countWordsM) ws 
 
 countWordsB :: [String] -> [(String,Int)] -> [String]
 countWordsB ws cs = bwdE (liftM CountList . countWordsM) ws (CountList cs)
@@ -444,7 +454,7 @@ listFigure4 =
 
 data L = A String | E String | T String deriving (Eq, Show) 
 
-textXML =
+testXML =
     Node (E "book") [Node (A "year")  [Node (T "1994") []],
                      Node (E "title") [Node (T "Text") []]]
 
@@ -471,7 +481,7 @@ q1 t = pick $ do bs <- gather $ (keep /> (tag "book" >=> h)) t
                t <- (keep /> tag "title") b 
                p <- (keep /> tag "publisher" /> keep) b 
                guardM $ lift $ liftO2 gtInt (label y) (new $ T "1991")
-               guardM $ lift $ liftO2 (==)  (label y) (new $ T "Addison-Wesley")
+               guardM $ lift $ liftO2 (==)  (label p) (new $ T "Addison-Wesley")
                return $ Node (new $ E "book") [Node (new $ A "year") [y], t]
       gtInt (T l1) (T l2) = (read l1 :: Int) > (read l2 :: Int) 
 
@@ -513,13 +523,13 @@ rename :: PackM String a m => String -> String -> Graph a -> m (Graph a)
 rename x y (Graph es) = 
     do r <- mapM (\(s,e,d) -> 
                       do b <- liftO2 (==) e (new x)
-                         if b then return (s,new y,d) else return (s,e,d)) es 
+                         return (if b then (s,new y,d) else (s,e,d))) es 
        return $ Graph r 
 
 
 contract :: PackM String a m => String -> Graph a -> m (Graph a) 
 contract x (Graph es) = 
-    do let nodes = nub (concatMap (\ (s,e,d)  -> [s,d]) es) :: [Int]
+    do let nodes = nub (concatMap (\ (s,_,d)  -> [s,d]) es) :: [Int]
        conts <- concatMapM (\(s,e,d) -> 
                               do b <- liftO2 (==) e (new x)
                                  return (if b then [(s,d)] else [])) es 
@@ -559,9 +569,9 @@ Section 7
 ---------
 -}
 
-f [x,y] = liftO2 (==) x y >> return [x] 
+ff [x,y] = liftO2 (==) x y >> return [x] 
 
-hasChanged (Loc x i, y) = not (x == y) 
+hasChanged (Loc x _, y) = not (x == y) 
 
 dup [x] = return [x,x]
 
