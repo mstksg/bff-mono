@@ -84,9 +84,9 @@ linkssMono (Node n ts) =
     if n == "a" then [Node n ts]
     else             concatMap linkssMono ts 
 
-class Eq c => PackTrial c a | a -> c where
+class PackTrial c a | a -> c where
     new' :: c -> a 
-    eq'  :: a -> a -> Bool 
+    eq'  :: Eq c => a -> a -> Bool 
 
 
 linksPoly :: forall a . PackTrial String a => Tree a -> Tree a
