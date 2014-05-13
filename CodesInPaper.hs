@@ -183,9 +183,9 @@ checkHist :: (a -> a) -> [Result a] -> Bool
 checkHist u h = all (check . u') h 
     where u' (Result p xs r) = Result p (map u xs) r 
 
-newtype W h a = W (a,[Result h]) 
+newtype W a b = W (b,[Result a]) 
 
-instance Monad (W h) where 
+instance Monad (W a) where 
     return x = W (x, []) 
     W (x,h1) >>= f = 
         let W (y,h2) = f x 
@@ -314,9 +314,9 @@ bwd h = \s v ->
 
 type Equiv = EW.EquivWitness Int 
 
-newtype SW h a = SW { runSW :: Equiv -> ((a,[Result h]), Equiv) }
+newtype SW a b = SW { runSW :: Equiv -> ((b,[Result a]), Equiv) }
 
-instance Monad (SW h) where 
+instance Monad (SW a) where 
     return x = SW $ \e -> ((x,[]), e)
     SW g >>= f = SW $ \e -> let ((x,h1),e') = g e 
                                 ((y,h2),e'') = runSW (f x) e' 
