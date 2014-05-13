@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, ExistentialQuantification #-}
+{-# LANGUAGE RankNTypes, ExistentialQuantification #-}
 
 module Data.BffMono.CheckHistory where 
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, FunctionalDependencies, FlexibleContexts, 
+{-# LANGUAGE RankNTypes, FunctionalDependencies, FlexibleContexts, 
              FlexibleInstances, ExistentialQuantification, 
              DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 

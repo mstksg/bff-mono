@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, Rank2Types  #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes  #-}
 {-| 
   A restricted version of @EquivMap@, which just records equivalence. 
  -} 

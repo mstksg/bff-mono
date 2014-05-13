@@ -1,7 +1,7 @@
 {-#
   LANGUAGE 
     FlexibleInstances, MultiParamTypeClasses, 
-    FunctionalDependencies, Rank2Types,
+    FunctionalDependencies, RankNTypes,
     ImpredicativeTypes, FlexibleContexts, 
     PatternGuards 
   #-}
