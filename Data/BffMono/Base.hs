@@ -69,6 +69,7 @@ data Loc a = Loc { body :: a, location :: Location }
 -- type Update a = IntMap a
 type Update a = EquivMap Int a 
 
+
 ----------------------------------------------------------------
 
 
@@ -131,16 +132,22 @@ matchViews xview view equiv =
 
 
 ------------------------------------------------------
+-- | Data type for the forward execution
+newtype New a = New {runNew :: a} 
+
+instance Functor New where 
+    fmap f (New a) = New $ f a 
+
 
 -- | used internally 
-instance Pack a (Identity a) where 
-    new = Identity 
+instance Pack a (New a) where 
+    new = New 
 
 -- | used internally 
-instance PackM a (Identity a) Identity where 
-    liftO obs xs = return $ obs (map runIdentity xs)
-    eqSync x y  = return $ runIdentity x == runIdentity y 
-    compareSync x y = return $ runIdentity x `compare` runIdentity y 
+instance PackM a (New a) Identity where 
+    liftO obs xs = return $ obs (map runNew xs)
+    eqSync x y  = return $ runNew x == runNew y 
+    compareSync x y = return $ runNew x `compare` runNew y 
                  
 -- | used internally 
 instance Pack a (Loc a) where 
@@ -209,6 +216,6 @@ fwd :: (Traversable vf, Traversable sf) =>
        (forall a m. (PackM c a m) => sf a -> m (vf a)) ->
            sf c -> vf c
 fwd pget src =
-    let Identity r = pget $ fmap Identity src 
-    in fmap runIdentity r
+    let Identity r = pget $ fmap New src 
+    in fmap runNew r
 
