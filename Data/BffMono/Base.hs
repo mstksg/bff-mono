@@ -28,9 +28,18 @@ import Control.Monad.Identity
 
 ----------------------------------------------------------------
 -- | @Pack conc abs@ provides a way to abstract @conc@ by @abs@. 
+--   The class is used just as an interface. Thus, no instances 
+--   are provided by this package. 
 class Pack conc abs | abs -> conc where 
     new :: conc -> abs 
 
+-- | @PackM@ is the interface for our bidirectionalization. 
+--   See also 'fwd' and 'bwd'. 
+-- 
+--   @PackM conc abs monad@ provides a way to abstract @conc@ by @abs@, 
+--   with recording "observations" through @monad@. 
+--   Similarly to @Pack@, this class is also used just as an interface. 
+--   Thus, no instances are provided by this package. 
 class (Pack conc abs, Monad m, Functor m) => 
        PackM conc abs m where
     liftO :: Eq r => ([conc] -> r) -> ([abs] -> m r)

@@ -27,6 +27,7 @@ import Data.Maybe (fromJust)
 
 import Control.Monad.State 
 
+-- | A datastructure implements "map" based on Union-Find tree. 
 data EquivMap k a =
     EquivMap {
       elemMap :: Map k Int,

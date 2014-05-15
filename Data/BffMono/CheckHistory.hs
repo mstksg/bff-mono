@@ -7,7 +7,6 @@ module Data.BffMono.CheckHistory where
 --   observation function, a list observed elements and an observation
 --   result. We used an existential type here to store heterogeneous
 --   observation results into a list.
-
 data CheckResult a = forall b. Eq b => 
                      CheckResult ([a] -> b) [a] b 
                      
