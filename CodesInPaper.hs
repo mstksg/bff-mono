@@ -202,9 +202,8 @@ update upd (Loc x Nothing) = Loc x Nothing
 update upd (Loc x (Just i)) =
     maybe (Loc x (Just i)) (\y -> Loc y (Just i)) (lookup i upd) 
        
-bwdTree :: Eq c => 
-       (forall a. forall m. PackM c a m => Tree a -> m (Tree a)) 
-           -> Tree c -> Tree c -> Tree c 
+bwdTree :: (forall a. forall m. PackM c a m => Tree a -> m (Tree a)) 
+           -> (Eq c => Tree c -> Tree c -> Tree c) 
 bwdTree h = 
     \s v -> 
         let sx = assignLocs  s
@@ -298,9 +297,9 @@ fwd :: (Traversable k1, Traversable k2) =>
 fwd h = \s -> let I v = h (fmap N s) in fmap runN v 
             
 
-bwd :: (Traversable k1, Traversable k2, Eq (k2 ()), Eq c) => 
+bwd :: (Traversable k1, Traversable k2) => 
        (forall a. forall m. PackM c a m => k1 a -> m (k2 a))
-       -> k1 c -> k2 c -> k1 c 
+       -> ((Eq c,Eq (k2 ())) => k1 c -> k2 c -> k1 c)
 bwd h = \s v -> 
         let sx = assignLocs  s
             W (vx, hist) = h sx 
@@ -336,14 +335,18 @@ instance PackM c (Loc c) (SW (Loc c)) where
     liftO p x = SW $ \ e -> ((p' x, [Result p' x (p' x)]),e)
         where p' = p . map body 
     eqSync x y | body x == body y, Just i <- location x, Just j <- location y =
-                        SW $ \e -> let (z,e') = runSW (liftO2 (==) x y) e 
-                                   in (z, equate i j e')
+                  let p [x,y] = body x == body y 
+                  in SW $ \e -> ((True, [Result p [x,y] True]), equate i j e)
+                   -- SW $ \e -> ((True, [Result (\[x,y] -> body x == body y) [x,y] True]), 
+                   --             equate i j e)
+                        -- SW $ \e -> let (z,e') = runSW (liftO2 (==) x y) e 
+                        --            in (z, equate i j e')
                | otherwise = liftO2 (==) x y 
 
 
-bwdE :: (Traversable k1, Traversable k2, Eq (k2 ()), Eq c) => 
+bwdE :: (Traversable k1, Traversable k2) => 
         (forall a. forall m. PackM c a m => k1 a -> m (k2 a))
-        -> k1 c -> k2 c -> k1 c 
+        -> (Eq (k2 ()), Eq c) => k1 c -> k2 c -> k1 c 
 bwdE h = \s v -> 
         let sx                  = assignLocs  s
             ((vx, hist), equiv) = runSW (h sx) empty 
@@ -575,9 +578,9 @@ hasChanged (Loc x _, y) = not (x == y)
 
 dup [x] = return [x,x]
 
-bwdE' :: (Traversable k1, Traversable k2, Eq (k2 ()), Eq c) => 
+bwdE' :: (Traversable k1, Traversable k2) => 
          (forall a. forall m. PackM c a m => k1 a -> m (k2 a))
-         -> k1 c -> k2 c -> k1 c 
+         -> (Eq (k2 ()), Eq c) => k1 c -> k2 c -> k1 c 
 bwdE' h = \s v -> 
         let sx                  = assignLocs  s
             ((vx, hist), equiv) = runSW (h sx) empty 
