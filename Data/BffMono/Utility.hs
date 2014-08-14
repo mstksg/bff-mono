@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -cpp #-}
 {-|
   The module provides counterparts of @..By@ functions in "Data.List"
   for monadic observations. 
@@ -6,8 +7,10 @@ module Data.BffMono.Utility
     ( 
      ifM, nubByM, deleteByM, deleteFirstByM, unionByM, 
      intersectByM, elemByM, groupByM, 
-     sortByM, insertByM, maximumByM, minimumByM, 
-     traceM 
+#if __GLASGOW_HASKELL__ < 708
+     traceM, 
+#endif
+     sortByM, insertByM, maximumByM, minimumByM
      ) where 
 
 
@@ -17,8 +20,10 @@ import Debug.Trace
 ifM :: Monad m => m Bool -> m a -> m a -> m a 
 ifM m x y = m >>= (\b -> if b then x else y)
 
+#if __GLASGOW_HASKELL__  < 708 
 traceM :: Monad m => m String -> m a -> m a 
 traceM m y = do { x <- m; trace x y }
+#endif 
 
 nubByM :: Monad m => (a -> a -> m Bool) -> [a] -> m [a]
 nubByM eq = f 
