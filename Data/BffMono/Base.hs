@@ -3,7 +3,7 @@
     FlexibleInstances, MultiParamTypeClasses, 
     FunctionalDependencies, RankNTypes,
     ImpredicativeTypes, FlexibleContexts, 
-    PatternGuards 
+    PatternGuards, ScopedTypeVariables
   #-}
 
 
@@ -22,7 +22,7 @@ import Data.BffMono.EquivWitness (EquivWitness)
 import qualified Data.BffMono.EquivWitness as EW
 
 -- from mtl 
-import Control.Monad.Error 
+import Control.Monad.Error.Class
 import Control.Monad.State 
 import Control.Monad.Identity 
 
@@ -113,28 +113,30 @@ errMsgConstant = strMsg "Update on Constant!"
 
 {- This version does not check the all the duplicates are updated as in 
    the same way -} 
-matchViews :: (Eq a,Functor f,Foldable f, Eq (f ()), MonadError e m, Error e)
+matchViews :: forall a f e m.
+              (Eq a,Functor f,Foldable f, Eq (f ()), MonadError e m, Error e)
               => f (Loc a) -> f a -> EquivWitness Int -> m (Update a) 
 matchViews xview view equiv =
     if isShapeEqual xview view then 
         makeUpd (EW.emptyMap equiv) $ filter hasUpdated
                     $ zip (Foldable.toList xview) (Foldable.toList view)
     else
-        throwError $ strMsg "Shape Mismatch!"
+        throwError $ (strMsg "Shape Mismatch!" :: e)
     where
       hasUpdated (Loc x _, y) = x /= y 
+      makeUpd :: EquivMap Int a -> [(Loc a, a)] -> m (EquivMap Int a)
       makeUpd upd [] = return upd 
-      makeUpd upd ((Loc _ InTrans,y):ps) = throwError errMsgConstant 
+      makeUpd upd ((Loc _ InTrans,y):ps) = throwError (errMsgConstant :: e)
       makeUpd upd ((Loc _ (InSource i), y):ps) =
           case EM.lookup i upd of 
             (Just z, upd') -> 
                 if z == y then 
                     makeUpd upd' ps 
                 else
-                    throwError errMsgInconsistent 
+                    throwError (errMsgInconsistent :: e)
             (Nothing, upd') -> 
                 makeUpd (EM.insert i y upd) ps 
-      isShapeEqual :: (Functor f, Eq (f ())) => f a -> f b -> Bool 
+      isShapeEqual :: (Functor f, Eq (f ())) => f b -> f c -> Bool 
       isShapeEqual x y =  void x == void y 
           
           
